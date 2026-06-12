@@ -238,4 +238,4 @@ The frontend is a static Next.js export (`next build`, output in `desktop/out/`)
 
 ---
 
-**Author:** Kyaw Soe &nbsp;|&nbsp; **License:** MIT
+**Developer:** Kyaw Soe &nbsp;|&nbsp; **License:** MIT
