@@ -2,6 +2,8 @@
 
 A desktop application for securely managing environment variables and secrets across multiple projects. Built with **Tauri v1** (Rust backend) + **Next.js 14** (TypeScript frontend).
 
+**Author:** Kyaw Soe &nbsp;|&nbsp; **License:** MIT
+
 <p align="center">
   <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
     <img alt="macOS" src="https://img.shields.io/badge/macOS-Download-black?logo=apple&style=for-the-badge" />
@@ -13,6 +15,17 @@ A desktop application for securely managing environment variables and secrets ac
     <img alt="Linux" src="https://img.shields.io/badge/Linux-Download-orange?logo=linux&style=for-the-badge" />
   </a>
 </p>
+
+## Download
+
+Grab the latest installer for your platform from the [releases page](https://github.com/kyawsoe-dev/enveil/releases/latest).
+
+| Platform | File |
+|---|---|
+| macOS (Intel) | `enveil_x86_64.dmg` |
+| macOS (Apple Silicon) | `enveil_aarch64.dmg` |
+| Windows | `enveil_x64.msi` or `enveil_x64.exe` |
+| Linux | `enveil_amd64.deb` or `enveil_x86_64.AppImage` |
 
 ## Screenshots
 
