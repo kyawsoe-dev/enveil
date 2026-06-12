@@ -2,6 +2,24 @@
 
 A desktop application for securely managing environment variables and secrets across multiple projects. Built with **Tauri v1** (Rust backend) + **Next.js 14** (TypeScript frontend).
 
+<p align="center">
+  <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
+    <img alt="macOS" src="https://img.shields.io/badge/macOS-Download-black?logo=apple&style=for-the-badge" />
+  </a>
+  <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
+    <img alt="Windows" src="https://img.shields.io/badge/Windows-Download-blue?logo=windows&style=for-the-badge" />
+  </a>
+  <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
+    <img alt="Linux" src="https://img.shields.io/badge/Linux-Download-orange?logo=linux&style=for-the-badge" />
+  </a>
+</p>
+
+## Screenshots
+
+| Dashboard | Env Table | Diff View | Terminal Runner |
+|---|---|---|---|
+| ![](screenshots/dashboard.png) | ![](screenshots/env-table.png) | ![](screenshots/diff-view.png) | ![](screenshots/terminal-runner.png) |
+
 ## Features
 
 | Feature | Description |
