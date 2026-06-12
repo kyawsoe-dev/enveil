@@ -1,0 +1,14 @@
+{
+  "components/EnvTable.tsx -> @tauri-apps/api/dialog": {
+    "id": 7753,
+    "files": [
+      "static/chunks/753.b7e24c5b4245caba.js"
+    ]
+  },
+  "components/EnvTable.tsx -> @tauri-apps/api/fs": {
+    "id": 1892,
+    "files": [
+      "static/chunks/892.965ebd189bfb78e3.js"
+    ]
+  }
+}

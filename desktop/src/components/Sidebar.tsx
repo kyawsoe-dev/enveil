@@ -1,0 +1,322 @@
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { useTheme } from "next-themes";
+import {
+  LayoutDashboard,
+  GitCompare,
+  Terminal,
+  LogOut,
+  Sun,
+  Moon,
+  Monitor,
+  FolderPlus,
+  PanelLeftClose,
+  PanelLeft,
+  Github,
+} from "lucide-react";
+import UsageGuide from "./UsageGuide";
+import EditProjectDialog from "./EditProjectDialog";
+import DeleteProjectDialog from "./DeleteProjectDialog";
+import SettingsDialog from "./SettingsDialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import { useVault } from "./VaultProvider";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import type { Project } from "@/lib/types";
+
+export default function Sidebar({
+  open,
+  onToggle,
+}: {
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const { state, selectProject, setView, lock, saveProject, deleteProject } =
+    useVault();
+  const { theme, setTheme } = useTheme();
+  const selected = state.selectedProjectId;
+  const projects = state.vault?.projects ?? [];
+
+  return (
+    <motion.aside
+      animate={{ width: open ? 224 : 40 }}
+      transition={{ duration: 0.2, ease: 'easeInOut' }}
+      className="flex h-full flex-col border-r bg-sidebar overflow-hidden"
+    >
+      {open ? (
+        <>
+      <div className="flex items-center justify-between px-3 py-2.5 min-w-[224px]">
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-brand font-normal tracking-tight text-sidebar-foreground text-lg">
+            ENVEIL
+          </span>
+          <span className="text-[10px] font-mono text-sidebar-foreground/60 leading-none">v0.1.0</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <UsageGuide />
+          <button
+            onClick={() =>
+              setTheme(
+                theme === "system"
+                  ? "light"
+                  : theme === "light"
+                    ? "dark"
+                    : "system",
+              )
+            }
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors"
+            title={`Theme: ${theme}`}
+          >
+            {theme === "dark" ? (
+              <Moon className="h-3.5 w-3.5" />
+            ) : theme === "light" ? (
+              <Sun className="h-3.5 w-3.5" />
+            ) : (
+              <Monitor className="h-3.5 w-3.5" />
+            )}
+          </button>
+          <button
+            onClick={onToggle}
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors"
+            title={open ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            {open ? (
+              <PanelLeftClose className="h-3.5 w-3.5" />
+            ) : (
+              <PanelLeft className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      <Separator />
+
+      <nav className="flex flex-col gap-0.5 px-2 py-3 min-w-[224px]">
+        <p className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          Views
+        </p>
+        <NavButton
+          icon={<LayoutDashboard className="h-4 w-4" />}
+          label="Dashboard"
+          active={state.activeView === "dashboard"}
+          onClick={() => setView("dashboard")}
+        />
+        <NavButton
+          icon={<GitCompare className="h-4 w-4" />}
+          label="Compare"
+          active={state.activeView === "diff"}
+          onClick={() => setView("diff")}
+        />
+        <NavButton
+          icon={<Terminal className="h-4 w-4" />}
+          label="Terminal"
+          active={state.activeView === "terminal"}
+          onClick={() => setView("terminal")}
+        />
+      </nav>
+
+      <Separator />
+
+      <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-3 min-w-[224px]">
+        <div className="flex items-center justify-between px-2 pb-1">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Projects
+          </p>
+          <span className="text-[11px] tabular-nums text-muted-foreground">
+            {projects.length}
+          </span>
+        </div>
+        {projects.map((p) => (
+          <div
+            key={p.id}
+            className={cn(
+              "group flex w-full items-center gap-1 rounded-md pr-1 transition-colors",
+              selected === p.id
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+            )}
+          >
+            <button
+              onClick={() => { selectProject(p.id); setView('project'); }}
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm"
+            >
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] bg-primary/20 text-[10px] font-bold text-primary">
+                {p.name.charAt(0).toUpperCase()}
+              </span>
+              <span className="truncate">{p.name}</span>
+            </button>
+            <div
+              className={cn(
+                "shrink-0 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100",
+                selected === p.id && "opacity-100",
+              )}
+            >
+              <DeleteProjectDialog project={p} onDelete={deleteProject} compact />
+              <EditProjectDialog project={p} onSave={saveProject} compact />
+            </div>
+          </div>
+        ))}
+        {projects.length === 0 && (
+          <p className="px-2 py-3 text-xs text-muted-foreground">
+            No projects yet
+          </p>
+        )}
+        <AddProjectDialog onSave={saveProject} />
+      </div>
+
+      <Separator />
+
+      <div className="space-y-1 p-2 min-w-[224px]">
+        <a
+          href="https://github.com/kyawsoe-dev/enveil"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+        >
+          <Github className="h-3.5 w-3.5" />
+          GitHub
+        </a>
+        <SettingsDialog />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={lock}
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <LogOut className="h-4 w-4" />
+          Lock Vault
+        </Button>
+      </div>
+        </>
+      ) : (
+        <div className="flex flex-col items-center py-2 min-w-[40px]">
+          <button
+            onClick={onToggle}
+            className="flex h-8 w-8 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="Expand sidebar"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </motion.aside>
+  );
+}
+
+function AddProjectDialog({
+  onSave,
+}: {
+  onSave: (p: Project) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    const project: Project = {
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      description: description.trim(),
+      env_vars: {},
+    };
+    await onSave(project);
+    setName("");
+    setDescription("");
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mt-1 w-full justify-start gap-2 text-muted-foreground"
+        >
+          <FolderPlus className="h-4 w-4" />
+          Add Project
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Project</DialogTitle>
+          <DialogDescription className="sr-only">
+            Create a new project to store environment variables.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 pt-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Project Name
+            </label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="my-service"
+              className="font-mono text-sm"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Description
+            </label>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description"
+              className="text-sm"
+            />
+          </div>
+          <Button
+            onClick={handleSave}
+            className="w-full gap-2"
+            disabled={!name.trim()}
+          >
+            <FolderPlus className="h-4 w-4" />
+            Create Project
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NavButton({
+  icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+        active
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+      )}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}

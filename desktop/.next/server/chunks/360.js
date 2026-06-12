@@ -1,0 +1,1 @@
+"use strict";exports.id=360,exports.ids=[360],exports.modules={3360:(e,t,r)=>{r.d(t,{save:()=>a});var s=r(9643);async function a(e={}){return"object"==typeof e&&Object.freeze(e),(0,s.Z)({__tauriModule:"Dialog",message:{cmd:"saveDialog",options:e}})}},9643:(e,t,r)=>{r.d(t,{Z:()=>a});var s=r(9171);async function a(e){return(0,s.dw)("tauri",e)}}};
