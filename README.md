@@ -2,8 +2,6 @@
 
 A desktop application for securely managing environment variables and secrets across multiple projects. Built with **Tauri v1** (Rust backend) + **Next.js 14** (TypeScript frontend).
 
-**Author:** Kyaw Soe &nbsp;|&nbsp; **License:** MIT
-
 <p align="center">
   <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
     <img alt="macOS" src="https://img.shields.io/badge/macOS-Download-black?logo=apple&style=for-the-badge" />
@@ -237,3 +235,7 @@ The frontend is a static Next.js export (`next build`, output in `desktop/out/`)
 | `uuid` 1 | Project identifiers |
 | `thiserror` 1 | Error types |
 | `rand` 0.8 | Salt & nonce generation |
+
+---
+
+**Author:** Kyaw Soe &nbsp;|&nbsp; **License:** MIT
