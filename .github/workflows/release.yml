@@ -181,7 +181,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "${{ github.ref_name }} — Initial Release"
+          name: "release for v0.1.0"
           generate_release_notes: true
           draft: true
           files: |
