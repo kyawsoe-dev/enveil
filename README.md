@@ -25,6 +25,16 @@ Grab the latest installer for your platform from the [releases page](https://git
 | Windows | `enveil_x64.msi` or `enveil_x64.exe` |
 | Linux | `enveil_amd64.deb` or `enveil_x86_64.AppImage` |
 
+### macOS Troubleshooting
+
+If macOS blocks the app from opening (unverified developer), run this in Terminal:
+
+```bash
+xattr -cr /Applications/ENVEIL.app
+```
+
+This removes the quarantine attribute. Then open the app normally.
+
 ## Screenshots
 
 | Dashboard | Env Table | Diff View | Terminal Runner |
