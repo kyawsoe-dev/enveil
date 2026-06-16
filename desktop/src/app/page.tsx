@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { VaultProvider, useVault } from '@/components/VaultProvider';
 import MasterAuth from '@/components/MasterAuth';
 import Sidebar from '@/components/Sidebar';
@@ -14,6 +14,29 @@ import { Toaster } from '@/components/ui/toaster';
 function AppShell() {
   const { state } = useVault();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const checkedRef = useRef(false);
+
+  useEffect(() => {
+    if (!state.isUnlocked || checkedRef.current) return;
+    checkedRef.current = true;
+
+    (async () => {
+      try {
+        const { checkUpdate, installUpdate } = await import('@tauri-apps/api/updater');
+        const { shouldUpdate, manifest } = await checkUpdate();
+        if (shouldUpdate && manifest) {
+          const install = confirm(
+            `Update v${manifest.version} is available. Download now?`
+          );
+          if (install) {
+            await installUpdate();
+          }
+        }
+      } catch {
+        // Not running in Tauri
+      }
+    })();
+  }, [state.isUnlocked]);
 
   if (!state.isUnlocked) {
     return <MasterAuth />;
