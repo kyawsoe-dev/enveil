@@ -178,6 +178,36 @@ jobs:
       - name: List downloaded files
         run: find artifacts -type f | head -30
 
+      - name: Generate updater JSON
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          cat > artifacts/updater.json <<EOF
+          {
+            "version": "$VERSION",
+            "notes": "See release notes",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-x86_64": {
+                "signature": "",
+                "url": "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_x86_64.dmg"
+              },
+              "darwin-aarch64": {
+                "signature": "",
+                "url": "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_aarch64.dmg"
+              },
+              "windows-x86_64": {
+                "signature": "",
+                "url": "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_x64.msi"
+              },
+              "linux-x86_64": {
+                "signature": "",
+                "url": "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_amd64.deb"
+              }
+            }
+          }
+          EOF
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -192,3 +222,4 @@ jobs:
             artifacts/**/*.msi
             artifacts/**/*.exe
             artifacts/**/*.dmg
+            artifacts/updater.json
