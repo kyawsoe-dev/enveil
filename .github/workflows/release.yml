@@ -47,7 +47,9 @@ jobs:
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: tauri build
+        run: |
+          echo "$TAURI_PRIVATE_KEY" > /tmp/tauri-key.pem
+          TAURI_PRIVATE_KEY=/tmp/tauri-key.pem tauri build
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -83,7 +85,10 @@ jobs:
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: tauri build
+        run: |
+          echo "$env:TAURI_PRIVATE_KEY" > C:\tauri-key.pem
+          $env:TAURI_PRIVATE_KEY = 'C:\tauri-key.pem'
+          tauri build
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -125,7 +130,9 @@ jobs:
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: tauri build --target x86_64-apple-darwin --bundles dmg
+        run: |
+          echo "$TAURI_PRIVATE_KEY" > /tmp/tauri-key.pem
+          TAURI_PRIVATE_KEY=/tmp/tauri-key.pem tauri build --target x86_64-apple-darwin --bundles dmg
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -165,7 +172,9 @@ jobs:
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: tauri build --bundles dmg
+        run: |
+          echo "$TAURI_PRIVATE_KEY" > /tmp/tauri-key.pem
+          TAURI_PRIVATE_KEY=/tmp/tauri-key.pem tauri build --bundles dmg
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -195,6 +204,7 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
+          echo "$TAURI_PRIVATE_KEY" > /tmp/tauri-key.pem
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
 
@@ -203,7 +213,7 @@ jobs:
             local file="$1"
             local url="$2"
             if [ -f "$file" ]; then
-              sig=$(npx tauri signer sign --private-key <(echo "$TAURI_PRIVATE_KEY") "$file" 2>/dev/null)
+              sig=$(npx tauri signer sign --private-key /tmp/tauri-key.pem "$file" 2>/dev/null)
               echo "{\"signature\": \"$sig\", \"url\": \"$url\"}"
             else
               echo "null"
