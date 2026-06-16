@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings, Shield, RefreshCw } from 'lucide-react';
+import { Settings, Shield, RefreshCw, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,6 +14,7 @@ import {
 import { useVault } from './VaultProvider';
 import ChangePasswordDialog from './ChangePasswordDialog';
 import ResetVaultDialog from './ResetVaultDialog';
+import LanSyncPanel from './LanSyncPanel';
 
 export default function SettingsDialog() {
   const { autoLockTimeout, changeAutoLockTimeout } = useVault();
@@ -122,6 +123,17 @@ export default function SettingsDialog() {
                 <p className="text-xs text-center text-muted-foreground">{updateStatus}</p>
               )}
             </div>
+          </div>
+
+          <div className="border-t pt-4 space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-medium leading-none">
+              <Wifi className="h-4 w-4" />
+              Team Collaboration
+            </h3>
+            <p className="text-xs text-muted-foreground leading-normal">
+              Share projects with team members on the same local network.
+            </p>
+            <LanSyncPanel />
           </div>
         </div>
       </DialogContent>

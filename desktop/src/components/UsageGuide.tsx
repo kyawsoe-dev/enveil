@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye } from 'lucide-react';
+import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -111,6 +111,18 @@ export default function UsageGuide() {
             </h3>
             <p className="text-muted-foreground">
               Your vault is encrypted with <strong>Argon2id</strong> + <strong>ChaCha20Poly1305</strong> and stored locally. Click <strong>Lock Vault</strong> in the sidebar to lock it. Close the app to auto-lock.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <Wifi className="h-3.5 w-3.5 text-primary" /> LAN Sync (Team Collaboration)
+            </h3>
+            <p className="text-muted-foreground">
+              Share projects with team members on the same local network. Open <strong>Settings → Team Collaboration</strong> and click <strong>Start</strong>. Other ENVEIL instances on your network will appear. Click a project to share it with a peer — it gets added to their vault.
+            </p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              All data stays on your LAN. You must be on the same network. The vault password is required when syncing.
             </p>
           </section>
 
