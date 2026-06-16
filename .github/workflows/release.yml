@@ -179,34 +179,45 @@ jobs:
         run: find artifacts -type f | head -30
 
       - name: Generate updater JSON
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
+
+          # Sign each platform artifact
+          sign_and_url() {
+            local file="$1"
+            local url="$2"
+            if [ -f "$file" ]; then
+              sig=$(npx tauri signer sign --private-key <(echo "$TAURI_PRIVATE_KEY") "$file" 2>/dev/null)
+              echo "{\"signature\": \"$sig\", \"url\": \"$url\"}"
+            else
+              echo "null"
+            fi
+          }
+
+          DMG_X64=$(sign_and_url "$(find artifacts -name '*x86_64.dmg' | head -1)" "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_x86_64.dmg")
+          DMG_AARCH64=$(sign_and_url "$(find artifacts -name '*aarch64.dmg' | head -1)" "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_aarch64.dmg")
+          MSI=$(sign_and_url "$(find artifacts -name '*.msi' | head -1)" "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_x64.msi")
+          DEB=$(sign_and_url "$(find artifacts -name '*.deb' | head -1)" "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_amd64.deb")
+
           cat > artifacts/updater.json <<EOF
           {
             "version": "$VERSION",
             "notes": "See release notes",
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
-              "darwin-x86_64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_x86_64.dmg"
-              },
-              "darwin-aarch64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_aarch64.dmg"
-              },
-              "windows-x86_64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_x64.msi"
-              },
-              "linux-x86_64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_amd64.deb"
-              }
+              "darwin-x86_64": $DMG_X64,
+              "darwin-aarch64": $DMG_AARCH64,
+              "windows-x86_64": $MSI,
+              "linux-x86_64": $DEB
             }
           }
           EOF
+          echo "updater.json:"
+          cat artifacts/updater.json
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
