@@ -1,0 +1,88 @@
+name: Generate updater.json
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (e.g. v0.1.0)
+        required: true
+        default: v0.1.0
+
+jobs:
+  generate-updater:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli@^1
+
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p assets
+          gh release download "${{ inputs.tag }}" --dir assets
+          echo "Downloaded files:"
+          ls -la assets/
+
+      - name: Generate updater.json
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: |
+          python3 -c "import os; open('/tmp/tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
+
+          TAG="${{ inputs.tag }}"
+          VERSION="${TAG#v}"
+
+          sign_file() {
+            local file="$1"
+            if [ ! -f "$file" ]; then
+              echo "null"
+              return
+            fi
+            local filename=$(basename "$file")
+            local sig=$(npx tauri signer sign --private-key /tmp/tauri-key.pem "$file" 2>/dev/null)
+            if [ -z "$sig" ]; then
+              echo "::error::Failed to sign $filename"
+              echo "null"
+              return
+            fi
+            echo "{\"signature\": \"$sig\", \"url\": \"https://github.com/${{ github.repository }}/releases/download/$TAG/$filename\"}"
+          }
+
+          DMG_X64=$(sign_file "$(find assets -name '*x64*.dmg' ! -name '*aarch64*' | head -1)")
+          DMG_AARCH64=$(sign_file "$(find assets -name '*aarch64*.dmg' | head -1)")
+          MSI=$(sign_file "$(find assets -name '*.msi' | head -1)")
+          DEB=$(sign_file "$(find assets -name '*.deb' | head -1)")
+
+          cat > updater.json <<EOF
+          {
+            "version": "$VERSION",
+            "notes": "See release notes",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-x86_64": $DMG_X64,
+              "darwin-aarch64": $DMG_AARCH64,
+              "windows-x86_64": $MSI,
+              "linux-x86_64": $DEB
+            }
+          }
+          EOF
+          echo "Generated updater.json:"
+          cat updater.json
+
+      - name: Upload updater.json to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ inputs.tag }}" updater.json --clobber
+          echo "Done! updater.json uploaded to release ${{ inputs.tag }}"
