@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings, Shield } from 'lucide-react';
+import { Settings, Shield, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,6 +18,32 @@ import ResetVaultDialog from './ResetVaultDialog';
 export default function SettingsDialog() {
   const { autoLockTimeout, changeAutoLockTimeout } = useVault();
   const [open, setOpen] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const checkForUpdates = async () => {
+    setChecking(true);
+    setUpdateStatus(null);
+    try {
+      const { checkUpdate, installUpdate } = await import('@tauri-apps/api/updater');
+      const { shouldUpdate, manifest } = await checkUpdate();
+      if (shouldUpdate && manifest) {
+        setUpdateStatus(`Update v${manifest.version} available`);
+        const install = confirm(`Update v${manifest.version} is available. Download now?`);
+        if (install) {
+          await installUpdate();
+        }
+      } else {
+        setUpdateStatus('You\'re up to date');
+        setTimeout(() => setUpdateStatus(null), 3000);
+      }
+    } catch {
+      setUpdateStatus('App is running in browser');
+      setTimeout(() => setUpdateStatus(null), 3000);
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const handleTimeoutChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     changeAutoLockTimeout(e.target.value);
@@ -82,6 +108,19 @@ export default function SettingsDialog() {
             <div className="flex flex-col gap-2">
               <ChangePasswordDialog />
               <ResetVaultDialog />
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2 text-xs"
+                onClick={checkForUpdates}
+                disabled={checking}
+              >
+                <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
+                {checking ? 'Checking...' : 'Check for Updates'}
+              </Button>
+              {updateStatus && (
+                <p className="text-xs text-center text-muted-foreground">{updateStatus}</p>
+              )}
             </div>
           </div>
         </div>
