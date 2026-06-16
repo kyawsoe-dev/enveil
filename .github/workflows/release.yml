@@ -44,6 +44,9 @@ jobs:
 
       - name: Build Tauri app
         working-directory: src-tauri
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: tauri build
 
       - name: Upload artifacts
@@ -77,6 +80,9 @@ jobs:
 
       - name: Build Tauri app
         working-directory: src-tauri
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: tauri build
 
       - name: Upload artifacts
@@ -116,6 +122,9 @@ jobs:
 
       - name: Build Tauri app
         working-directory: src-tauri
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: tauri build --target x86_64-apple-darwin --bundles dmg
 
       - name: Upload artifacts
@@ -153,6 +162,9 @@ jobs:
 
       - name: Build Tauri app
         working-directory: src-tauri
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: tauri build --bundles dmg
 
       - name: Upload artifacts
