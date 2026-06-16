@@ -8,6 +8,13 @@ export interface PeerInfo {
   hostname: string;
 }
 
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  description: string;
+  env_count: number;
+}
+
 export interface SyncState {
   active: boolean;
   peers: PeerInfo[];
@@ -35,14 +42,24 @@ export async function syncProjectFromPeer(
   peerDeviceName: string,
   projectId: string,
   password: string,
+  sharePassword: string,
 ): Promise<Project> {
   return invoke<Project>('sync_project_from_peer', {
     peerDeviceName,
     projectId,
     password,
+    sharePassword,
   });
 }
 
 export async function setDeviceName(name: string): Promise<void> {
   return invoke<void>('set_device_name', { name });
+}
+
+export async function getPeerProjects(
+  peerDeviceName: string,
+): Promise<ProjectSummary[]> {
+  return invoke<ProjectSummary[]>('get_peer_projects', {
+    peerDeviceName,
+  });
 }

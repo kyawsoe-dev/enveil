@@ -119,10 +119,43 @@ export default function UsageGuide() {
               <Wifi className="h-3.5 w-3.5 text-primary" /> LAN Sync (Team Collaboration)
             </h3>
             <p className="text-muted-foreground">
-              Share projects with team members on the same local network. Open <strong>Settings → Team Collaboration</strong> and click <strong>Start</strong>. Other ENVEIL instances on your network will appear. Click a project to share it with a peer — it gets added to their vault.
+              Share projects with teammates on the same local network. Open the <strong>LAN Sync</strong> section in the sidebar and click <strong>Start</strong>. Give each device a unique name (click the pencil icon next to your device name).
             </p>
-            <p className="text-muted-foreground mt-1 text-xs">
-              All data stays on your LAN. You must be on the same network. The vault password is required when syncing.
+            <div className="mt-2 overflow-hidden rounded-lg border text-xs">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-muted/50 text-left text-muted-foreground">
+                    <th className="px-3 py-1.5 font-medium">Step</th>
+                    <th className="px-3 py-1.5 font-medium">Device A (has projects 1, 2, 3)</th>
+                    <th className="px-3 py-1.5 font-medium">Device B (has projects 4, 5)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-border/40">
+                    <td className="px-3 py-1.5 font-medium">1</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">Click <strong>Start</strong> in LAN Sync</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">Click <strong>Start</strong> in LAN Sync</td>
+                  </tr>
+                  <tr className="border-t border-border/40">
+                    <td className="px-3 py-1.5 font-medium">2</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">See <strong>Device B</strong> appear in your peer list</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">See <strong>Device A</strong> appear in your peer list</td>
+                  </tr>
+                  <tr className="border-t border-border/40">
+                    <td className="px-3 py-1.5 font-medium">3</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">Under Device B, you see B's projects <strong>4, 5</strong> listed — click <strong>4</strong> to <strong>download</strong> it</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">Under Device A, you see A's projects <strong>1, 2, 3</strong> listed — click <strong>1</strong> to <strong>download</strong> it</td>
+                  </tr>
+                  <tr className="border-t border-border/40">
+                    <td className="px-3 py-1.5 font-medium">4</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">Project <strong>4</strong> now appears in your vault (alongside 1, 2, 3)</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">Project <strong>1</strong> now appears in their vault (alongside 4, 5)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-muted-foreground mt-2 text-xs">
+              All data stays on your LAN. Both devices must be on the same network. The vault password is required when syncing. Rename each device using the pencil icon to easily tell them apart.
             </p>
           </section>
 

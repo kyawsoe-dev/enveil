@@ -4,7 +4,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use super::types::{PeerInfo, ProjectSummary, SyncMessage};
-use crate::models::{Project, Vault};
+use crate::crypto::encryption::{decrypt_payload, encrypt_payload};
+use crate::models::{Project, SecurePayload, Vault};
 
 pub struct SyncTransport {
     listener: Option<TcpListener>,
@@ -75,69 +76,103 @@ fn read_message(stream: &mut TcpStream) -> Result<SyncMessage, String> {
 }
 
 fn handle_client(mut stream: TcpStream, vault: Arc<Mutex<Option<Vault>>>) {
-    let msg = match read_message(&mut stream) {
-        Ok(msg) => msg,
-        Err(_) => return,
-    };
+    loop {
+        let msg = match read_message(&mut stream) {
+            Ok(msg) => msg,
+            Err(_) => return,
+        };
 
-    match msg {
-        SyncMessage::Hello { device_name: _, app_version: _ } => {
-            let _ = send_message(&mut stream, &SyncMessage::Ack);
-        }
-        SyncMessage::ProjectListRequest => {
-            let vault_guard = vault.lock().unwrap();
-            let projects: Vec<ProjectSummary> = match vault_guard.as_ref() {
-                Some(v) => v
-                    .projects
-                    .iter()
-                    .map(|p| ProjectSummary {
-                        id: p.id.clone(),
-                        name: p.name.clone(),
-                        description: p.description.clone(),
-                        env_count: p.env_vars.len(),
-                    })
-                    .collect(),
-                None => vec![],
-            };
-            let _ = send_message(
-                &mut stream,
-                &SyncMessage::ProjectListResponse { projects },
-            );
-        }
-        SyncMessage::ProjectRequest { project_id } => {
-            let vault_guard = vault.lock().unwrap();
-            let response = match vault_guard.as_ref() {
-                Some(v) => v
-                    .projects
-                    .iter()
-                    .find(|p| p.id == project_id)
-                    .map(|p| SyncMessage::ProjectResponse {
-                        id: p.id.clone(),
-                        name: p.name.clone(),
-                        description: p.description.clone(),
-                        env_vars: p.env_vars.clone(),
-                    })
-                    .unwrap_or(SyncMessage::Error {
+        match msg {
+            SyncMessage::Hello { device_name: _, app_version: _ } => {
+                let _ = send_message(&mut stream, &SyncMessage::Ack);
+            }
+            SyncMessage::ProjectListRequest => {
+                let vault_guard = vault.lock().unwrap();
+                let projects: Vec<ProjectSummary> = match vault_guard.as_ref() {
+                    Some(v) => v
+                        .projects
+                        .iter()
+                        .map(|p| ProjectSummary {
+                            id: p.id.clone(),
+                            name: p.name.clone(),
+                            description: p.description.clone(),
+                            env_count: p.env_vars.len(),
+                        })
+                        .collect(),
+                    None => vec![],
+                };
+                let _ = send_message(
+                    &mut stream,
+                    &SyncMessage::ProjectListResponse { projects },
+                );
+            }
+            SyncMessage::ProjectRequest { project_id, password } => {
+                let vault_guard = vault.lock().unwrap();
+                let project = vault_guard.as_ref().and_then(|v| v.projects.iter().find(|p| p.id == project_id)).cloned();
+                drop(vault_guard);
+
+                let response = match project {
+                    Some(p) => {
+                        let json = serde_json::to_vec(&p).unwrap_or_default();
+                        if password.is_empty() {
+                            SyncMessage::ProjectResponse {
+                                id: p.id,
+                                name: p.name,
+                                description: p.description,
+                                env_vars: p.env_vars,
+                            }
+                        } else {
+                            match encrypt_payload(&json, &password) {
+                                Ok(payload) => SyncMessage::EncryptedProjectResponse {
+                                    encrypted_data: payload.ciphertext,
+                                    nonce: payload.nonce,
+                                    salt: payload.salt,
+                                },
+                                Err(_) => SyncMessage::Error {
+                                    message: "Encryption failed".to_string(),
+                                },
+                            }
+                        }
+                    }
+                    None => SyncMessage::Error {
                         message: "Project not found".to_string(),
-                    }),
-                None => SyncMessage::Error {
-                    message: "Vault is locked".to_string(),
-                },
-            };
-            let _ = send_message(&mut stream, &response);
-        }
-        _ => {
-            let _ = send_message(
-                &mut stream,
-                &SyncMessage::Error {
-                    message: "Unexpected message".to_string(),
-                },
-            );
+                    },
+                };
+                let _ = send_message(&mut stream, &response);
+            }
+            _ => {
+                let _ = send_message(
+                    &mut stream,
+                    &SyncMessage::Error {
+                        message: "Unexpected message".to_string(),
+                    },
+                );
+            }
         }
     }
 }
 
-pub fn request_project(peer: &PeerInfo, project_id: &str) -> Result<Project, String> {
+pub fn request_peer_projects(peer: &PeerInfo) -> Result<Vec<ProjectSummary>, String> {
+    let mut stream = TcpStream::connect(format!("{}:{}", peer.ip, peer.port))
+        .map_err(|e| format!("Failed to connect: {}", e))?;
+
+    let hello = SyncMessage::Hello {
+        device_name: "ENVEIL".to_string(),
+        app_version: "0.1.0".to_string(),
+    };
+    send_message(&mut stream, &hello)?;
+    read_message(&mut stream)?;
+
+    send_message(&mut stream, &SyncMessage::ProjectListRequest)?;
+
+    match read_message(&mut stream)? {
+        SyncMessage::ProjectListResponse { projects } => Ok(projects),
+        SyncMessage::Error { message } => Err(message),
+        _ => Err("Unexpected response".to_string()),
+    }
+}
+
+pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Result<Project, String> {
     let mut stream = TcpStream::connect(format!("{}:{}", peer.ip, peer.port))
         .map_err(|e| format!("Failed to connect: {}", e))?;
 
@@ -152,6 +187,7 @@ pub fn request_project(peer: &PeerInfo, project_id: &str) -> Result<Project, Str
         &mut stream,
         &SyncMessage::ProjectRequest {
             project_id: project_id.to_string(),
+            password: password.to_string(),
         },
     )?;
 
@@ -167,6 +203,21 @@ pub fn request_project(peer: &PeerInfo, project_id: &str) -> Result<Project, Str
             description,
             env_vars,
         }),
+        SyncMessage::EncryptedProjectResponse {
+            encrypted_data,
+            nonce,
+            salt,
+        } => {
+            let payload = SecurePayload {
+                salt,
+                nonce,
+                ciphertext: encrypted_data,
+            };
+            let plaintext = decrypt_payload(&payload, password).map_err(|e| e.to_string())?;
+            let project: Project = serde_json::from_slice(&plaintext)
+                .map_err(|e| format!("Failed to parse decrypted project: {}", e))?;
+            Ok(project)
+        }
         SyncMessage::Error { message } => Err(message),
         _ => Err("Unexpected response".to_string()),
     }

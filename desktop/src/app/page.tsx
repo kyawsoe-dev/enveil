@@ -9,6 +9,7 @@ import Dashboard from '@/components/Dashboard';
 import ProjectView from '@/components/ProjectView';
 import DiffView from '@/components/DiffView';
 import TerminalRunner from '@/components/TerminalRunner';
+import LanSyncView from '@/components/LanSyncView';
 import { Toaster } from '@/components/ui/toaster';
 
 function AppShell() {
@@ -54,6 +55,7 @@ function AppShell() {
           {state.activeView === 'project' && <ProjectView />}
           {state.activeView === 'diff' && <DiffView />}
           {state.activeView === 'terminal' && <TerminalRunner />}
+          {state.activeView === 'lan' && <LanSyncView />}
         </div>
       </main>
     </div>

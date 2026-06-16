@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import {
@@ -15,6 +15,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Github,
+  Wifi,
 } from "lucide-react";
 import UsageGuide from "./UsageGuide";
 import EditProjectDialog from "./EditProjectDialog";
@@ -34,6 +35,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import type { Project } from "@/lib/types";
+import * as lan from "@/lib/lan";
 
 export default function Sidebar({
   open,
@@ -47,6 +49,19 @@ export default function Sidebar({
   const { theme, setTheme } = useTheme();
   const selected = state.selectedProjectId;
   const projects = state.vault?.projects ?? [];
+  const [syncActive, setSyncActive] = useState(false);
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const s = await lan.getSyncStatus();
+        setSyncActive(s.active);
+      } catch {}
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <motion.aside
@@ -123,6 +138,22 @@ export default function Sidebar({
           label="Terminal"
           active={state.activeView === "terminal"}
           onClick={() => setView("terminal")}
+        />
+        <NavButton
+          icon={
+            <div className="relative">
+              <Wifi className="h-4 w-4" />
+              <span
+                className={cn(
+                  "absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ring-1 ring-sidebar",
+                  syncActive ? "bg-emerald-500" : "bg-muted-foreground/40",
+                )}
+              />
+            </div>
+          }
+          label="LAN Sync"
+          active={state.activeView === "lan"}
+          onClick={() => setView("lan")}
         />
       </nav>
 

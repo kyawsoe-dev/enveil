@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::error::VaultError;
 use crate::models::diff;
 use crate::models::{DiffResult, Project, Vault};
 use crate::storage::{delete_vault_file, load_vault, save_vault};
 
-pub struct AppState(pub Mutex<Option<Vault>>);
+pub struct AppState(pub Arc<Mutex<Option<Vault>>>);
 
 #[tauri::command]
 pub fn initialize_vault(
@@ -45,6 +45,14 @@ pub fn unlock_vault(
     let mut inner = state.0.lock().map_err(|e| e.to_string())?;
     *inner = Some(vault.clone());
     Ok(vault)
+}
+
+#[tauri::command]
+pub fn get_vault(
+    state: tauri::State<AppState>,
+) -> Result<Option<Vault>, String> {
+    let guard = state.0.lock().map_err(|e| e.to_string())?;
+    Ok(guard.clone())
 }
 
 #[tauri::command]

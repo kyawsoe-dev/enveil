@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::network::discovery::Mdnssd;
-use crate::network::transport::{request_project, SyncTransport};
+use crate::network::transport::{request_peer_projects, request_project, SyncTransport};
 use crate::network::types::PeerInfo;
 
 pub struct SyncAppState {
@@ -27,10 +27,34 @@ impl SyncAppState {
     }
 }
 
+use std::process::Command;
+
 fn hostname() -> String {
-    std::env::var("HOSTNAME")
-        .or_else(|_| std::env::var("COMPUTERNAME"))
-        .unwrap_or_else(|_| "enveil-peer".to_string())
+    if let Ok(name) = std::env::var("HOSTNAME") {
+        let name = name.trim().trim_end_matches(".local").to_string();
+        if !name.is_empty() {
+            return name;
+        }
+    }
+    if let Ok(name) = std::env::var("COMPUTERNAME") {
+        let name = name.trim().to_string();
+        if !name.is_empty() {
+            return name;
+        }
+    }
+    for cmd in &["/bin/hostname", "hostname"] {
+        if let Ok(out) = Command::new(cmd).output() {
+            if let Ok(name) = String::from_utf8(out.stdout) {
+                let name = name.trim().trim_end_matches(".local").to_string();
+                if !name.is_empty() {
+                    return name;
+                }
+            }
+        }
+    }
+    // Generate a unique fallback so devices never collide
+    let fallback = format!("ENVEIL-{}", std::process::id());
+    fallback
 }
 
 #[tauri::command]
@@ -44,9 +68,9 @@ pub fn start_lan_sync(
     }
 
     let device_name = sync_state.device_name.lock().map_err(|e| e.to_string())?.clone();
-    let vault = vault_state.0.lock().map_err(|e| e.to_string())?;
-    let vault_arc = Arc::new(Mutex::new(vault.clone()));
-    drop(vault);
+    let vault_arc = vault_state.0.clone();
+
+    sync_state.peer_list.lock().map_err(|e| e.to_string())?.clear();
 
     let peers = Arc::clone(&sync_state.peer_list);
 
@@ -113,6 +137,7 @@ pub fn sync_project_from_peer(
     peer_device_name: String,
     project_id: String,
     password: String,
+    share_password: String,
     sync_state: tauri::State<SyncAppState>,
     vault_state: tauri::State<crate::commands::vault_commands::AppState>,
 ) -> Result<crate::models::Project, String> {
@@ -127,7 +152,7 @@ pub fn sync_project_from_peer(
         .clone();
     drop(peers);
 
-    let project = request_project(&peer, &project_id)?;
+    let project = request_project(&peer, &project_id, &share_password)?;
 
     let mut vault_guard = vault_state.0.lock().map_err(|e| e.to_string())?;
     if let Some(ref mut vault) = *vault_guard {
@@ -143,7 +168,36 @@ pub fn set_device_name(
     name: String,
     sync_state: tauri::State<SyncAppState>,
 ) -> Result<(), String> {
-    let mut device_name = sync_state.device_name.lock().map_err(|e| e.to_string())?;
-    *device_name = name;
+    {
+        let mut device_name = sync_state.device_name.lock().map_err(|e| e.to_string())?;
+        *device_name = name.clone();
+    }
+
+    let active = *sync_state.active.lock().map_err(|e| e.to_string())?;
+    if active {
+        let port = *sync_state.port.lock().map_err(|e| e.to_string())?;
+        let peers = Arc::clone(&sync_state.peer_list);
+        let mut new_mdns = Mdnssd::new(Arc::clone(&peers), name, port);
+        new_mdns.start()?;
+
+        *sync_state.mdnssd.lock().map_err(|e| e.to_string())? = Some(new_mdns);
+        peers.lock().map_err(|e| e.to_string())?.clear();
+    }
+
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_peer_projects(
+    peer_device_name: String,
+    sync_state: tauri::State<SyncAppState>,
+) -> Result<Vec<crate::network::types::ProjectSummary>, String> {
+    let peers = sync_state.peer_list.lock().map_err(|e| e.to_string())?;
+    let peer = peers
+        .get(&peer_device_name)
+        .ok_or_else(|| format!("Peer '{}' not found", peer_device_name))?
+        .clone();
+    drop(peers);
+
+    request_peer_projects(&peer)
 }

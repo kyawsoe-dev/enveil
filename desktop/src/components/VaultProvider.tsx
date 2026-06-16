@@ -100,6 +100,7 @@ interface VaultContextValue {
   runDiff: (a: string, b: string) => Promise<void>;
   autoLockTimeout: string;
   changeAutoLockTimeout: (timeout: string) => void;
+  refreshVault: () => Promise<void>;
 }
 
 const VaultContext = createContext<VaultContextValue | null>(null);
@@ -250,6 +251,17 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_VIEW', view });
   }, []);
 
+  const refreshVault = useCallback(async () => {
+    try {
+      const vault = await tauri.getVault();
+      if (vault) {
+        dispatch({ type: 'SET_VAULT', vault });
+      }
+    } catch (err) {
+      dispatch({ type: 'SET_ERROR', error: String(err) });
+    }
+  }, []);
+
   const runDiff = useCallback(async (a: string, b: string) => {
     dispatch({ type: 'SET_DIFF', a, b });
     try {
@@ -274,6 +286,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       runDiff,
       autoLockTimeout,
       changeAutoLockTimeout,
+      refreshVault,
     }),
     [
       state,
@@ -288,6 +301,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       runDiff,
       autoLockTimeout,
       changeAutoLockTimeout,
+      refreshVault,
     ],
   );
 

@@ -18,4 +18,4 @@ export interface DiffResult {
   changed: Record<string, [string, string]>;
 }
 
-export type AppView = 'dashboard' | 'project' | 'diff' | 'terminal';
+export type AppView = 'dashboard' | 'project' | 'diff' | 'terminal' | 'lan';

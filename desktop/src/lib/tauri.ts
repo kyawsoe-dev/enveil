@@ -42,3 +42,7 @@ export async function resetVault(): Promise<void> {
 export async function deleteProject(password: string, projectId: string): Promise<void> {
   return invoke<void>('delete_project', { password, projectId });
 }
+
+export async function getVault(): Promise<Vault | null> {
+  return invoke<Vault | null>('get_vault');
+}

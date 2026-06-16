@@ -33,15 +33,17 @@ impl Mdnssd {
             &hostname,
             "",
             self.port,
-            None,
+            &[] as &[(&str, &str)],
         )
-        .map_err(|e| format!("Failed to create service info: {}", e))?;
+        .map_err(|e| format!("Failed to create service info: {}", e))?
+        .enable_addr_auto();
 
         daemon
             .register(service_info)
             .map_err(|e| format!("Failed to register mDNS service: {}", e))?;
 
         let peers_clone = Arc::clone(&self.peers);
+        let own_name = self.device_name.clone();
         let receiver = daemon
             .browse(SERVICE_TYPE)
             .map_err(|e| format!("Failed to browse mDNS: {}", e))?;
@@ -51,9 +53,13 @@ impl Mdnssd {
                 match event {
                     ServiceEvent::ServiceResolved(info) => {
                         let device_name = info.get_fullname().split('.').next().unwrap_or("unknown").to_string();
+                        if device_name == own_name {
+                            continue;
+                        }
                         let ip = info
                             .get_addresses()
                             .iter()
+                            .filter(|a| a.is_ipv4())
                             .next()
                             .map(|a| a.to_string())
                             .unwrap_or_default();

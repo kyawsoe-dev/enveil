@@ -29,12 +29,18 @@ pub enum SyncMessage {
     },
     ProjectRequest {
         project_id: String,
+        password: String,
     },
     ProjectResponse {
         id: String,
         name: String,
         description: String,
         env_vars: std::collections::BTreeMap<String, String>,
+    },
+    EncryptedProjectResponse {
+        encrypted_data: Vec<u8>,
+        nonce: Vec<u8>,
+        salt: Vec<u8>,
     },
     Ack,
     Error {
