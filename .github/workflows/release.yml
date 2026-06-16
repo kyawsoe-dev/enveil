@@ -48,7 +48,7 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
-          echo "$TAURI_PRIVATE_KEY" > /tmp/tauri-key.pem
+          python3 -c "import os; open('/tmp/tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
           TAURI_PRIVATE_KEY=/tmp/tauri-key.pem tauri build
 
       - name: Upload artifacts
@@ -86,7 +86,7 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
-          echo "$env:TAURI_PRIVATE_KEY" > C:\tauri-key.pem
+          python3 -c "import os; open('C:\\tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
           $env:TAURI_PRIVATE_KEY = 'C:\tauri-key.pem'
           tauri build
 
@@ -131,7 +131,7 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
-          echo "$TAURI_PRIVATE_KEY" > /tmp/tauri-key.pem
+          python3 -c "import os; open('/tmp/tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
           TAURI_PRIVATE_KEY=/tmp/tauri-key.pem tauri build --target x86_64-apple-darwin --bundles dmg
 
       - name: Upload artifacts
@@ -173,7 +173,7 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
-          echo "$TAURI_PRIVATE_KEY" > /tmp/tauri-key.pem
+          python3 -c "import os; open('/tmp/tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
           TAURI_PRIVATE_KEY=/tmp/tauri-key.pem tauri build --bundles dmg
 
       - name: Upload artifacts
@@ -204,7 +204,7 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
-          echo "$TAURI_PRIVATE_KEY" > /tmp/tauri-key.pem
+          python3 -c "import os; open('/tmp/tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
 
