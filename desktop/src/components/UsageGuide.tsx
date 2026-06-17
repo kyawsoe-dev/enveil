@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi } from 'lucide-react';
+import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi, Copy } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -22,20 +22,29 @@ export default function UsageGuide() {
           <CircleHelp className="h-3.5 w-3.5" />
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="fixed inset-0 w-screen h-screen max-w-none max-h-none translate-x-0 translate-y-0 rounded-none flex flex-col">
         <DialogHeader className="shrink-0">
           <DialogTitle>How to Use {APP_NAME}</DialogTitle>
           <DialogDescription className="sr-only">
             A guide to managing projects, environment variables, and vault security in {APP_NAME}.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 overflow-y-auto pr-1 text-sm flex-1 min-h-0">
+        <div className="space-y-4 overflow-y-auto pr-1 text-sm flex-1 min-h-0 p-6">
           <section>
             <h3 className="flex items-center gap-1.5 font-semibold mb-1">
               <Plus className="h-3.5 w-3.5 text-primary" /> Add a Project
             </h3>
             <p className="text-muted-foreground">
               Click the <strong>Add Project</strong> button in the sidebar. Enter a name (e.g. <code className="text-xs bg-muted px-1 rounded">my-service</code>) and optional description, then click <strong>Create Project</strong>.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <Copy className="h-3.5 w-3.5 text-primary" /> Duplicate a Project
+            </h3>
+<p className="text-muted-foreground">
+              Hover over a project in the sidebar and click the copy icon to duplicate it. The duplicate copies all env vars from the original project with a new ID.
             </p>
           </section>
 
@@ -119,7 +128,7 @@ export default function UsageGuide() {
               <Wifi className="h-3.5 w-3.5 text-primary" /> LAN Sync (Team Collaboration)
             </h3>
             <p className="text-muted-foreground">
-              Share projects with teammates on the same local network. Open the <strong>LAN Sync</strong> section in the sidebar and click <strong>Start</strong>. Give each device a unique name (click the pencil icon next to your device name).
+               Share projects with teammates on the same local network. Open the <strong>LAN Sync</strong> section in the sidebar and click <strong>Start</strong>. Give each device a unique name (click the pencil icon next to your device name). Only projects with a password can be downloaded from other devices.
             </p>
             <div className="mt-2 overflow-hidden rounded-lg border text-xs">
               <table className="w-full table-fixed">
@@ -131,26 +140,26 @@ export default function UsageGuide() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-t border-border/40">
-                    <td className="px-2 py-1.5 font-medium text-center">1</td>
-                    <td className="px-2 py-1.5 text-muted-foreground break-words">Click <strong>Start</strong> in LAN Sync</td>
-                    <td className="px-2 py-1.5 text-muted-foreground break-words">Click <strong>Start</strong> in LAN Sync</td>
-                  </tr>
-                  <tr className="border-t border-border/40">
-                    <td className="px-2 py-1.5 font-medium text-center">2</td>
-                    <td className="px-2 py-1.5 text-muted-foreground break-words">See <strong>Device B</strong> appear in your peer list</td>
-                    <td className="px-2 py-1.5 text-muted-foreground break-words">See <strong>Device A</strong> appear in your peer list</td>
-                  </tr>
-                  <tr className="border-t border-border/40">
-                    <td className="px-2 py-1.5 font-medium text-center">3</td>
-                    <td className="px-2 py-1.5 text-muted-foreground break-words">Under Device B, you see B's projects <strong>4, 5</strong> — click to <strong>download</strong></td>
-                    <td className="px-2 py-1.5 text-muted-foreground break-words">Under Device A, you see A's projects <strong>1, 2, 3</strong> — click to <strong>download</strong></td>
-                  </tr>
-                  <tr className="border-t border-border/40">
-                    <td className="px-2 py-1.5 font-medium text-center">4</td>
-                    <td className="px-2 py-1.5 text-muted-foreground break-words">Project <strong>4</strong> appears in your vault (alongside 1, 2, 3)</td>
-                    <td className="px-2 py-1.5 text-muted-foreground break-words">Project <strong>1</strong> appears in your vault (alongside 4, 5)</td>
-                  </tr>
+                   <tr className="border-t border-border/40">
+                     <td className="px-2 py-1.5 font-medium text-center">1</td>
+                     <td className="px-2 py-1.5 text-muted-foreground break-words">Click <strong>Start</strong> in LAN Sync</td>
+                     <td className="px-2 py-1.5 text-muted-foreground break-words">Click <strong>Start</strong> in LAN Sync</td>
+                   </tr>
+                   <tr className="border-t border-border/40">
+                     <td className="px-2 py-1.5 font-medium text-center">2</td>
+                     <td className="px-2 py-1.5 text-muted-foreground break-words">See <strong>Device B</strong> appear in your peer list</td>
+                     <td className="px-2 py-1.5 text-muted-foreground break-words">See <strong>Device A</strong> appear in your peer list</td>
+                   </tr>
+                   <tr className="border-t border-border/40">
+                     <td className="px-2 py-1.5 font-medium text-center">3</td>
+                     <td className="px-2 py-1.5 text-muted-foreground break-words">Under Device B, you see B's projects <strong>4, 5</strong> — click to <strong>download</strong> and enter the project password</td>
+                     <td className="px-2 py-1.5 text-muted-foreground break-words">Under Device A, you see A's projects <strong>1, 2, 3</strong> — click to <strong>download</strong> and enter the project password</td>
+                   </tr>
+                   <tr className="border-t border-border/40">
+                     <td className="px-2 py-1.5 font-medium text-center">4</td>
+                     <td className="px-2 py-1.5 text-muted-foreground break-words">Project <strong>4</strong> appears in your vault (alongside 1, 2, 3) after entering the correct password</td>
+                     <td className="px-2 py-1.5 text-muted-foreground break-words">Project <strong>1</strong> appears in your vault (alongside 4, 5) after entering the correct password</td>
+                   </tr>
                 </tbody>
               </table>
             </div>

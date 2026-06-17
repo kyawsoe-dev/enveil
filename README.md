@@ -56,7 +56,9 @@ This removes the quarantine attribute. Then open the app normally.
 | **Change Password** | Re-encrypts entire vault with a new master password |
 | **Auto-Lock** | Lock vault after configurable inactivity timeout |
 | **Reset Vault** | Securely wipe the entire vault and all projects |
+| **LAN Sync** | Share projects with teammates on the same local network with per-project share passwords for download authorization |
 | **Dark/Light/System Theme** | Class-based theming via `next-themes` |
+| **Project Duplicate** | Duplicate existing projects to create copies with shared env vars |
 
 ## Architecture
 
@@ -76,7 +78,7 @@ This removes the quarantine attribute. Then open the app normally.
 ┌──────────────▼───────────────────┐
 │         Rust Core (Tauri)        │
 │  ┌────────────────────────────┐  │
-│  │  9 tauri::commands          │  │
+│  │  17 tauri::commands          │  │
 │  └──────────┬─────────────────┘  │
 │  ┌──────────▼─────────────────┐  │
 │  │  Vault in memory (plain)   │  │
@@ -123,7 +125,7 @@ This removes the quarantine attribute. Then open the app normally.
 │   │   │   └── VaultProvider.tsx     React context (state + dispatch)
 │   │   ├── lib/
 │   │   │   ├── brand.ts              App name, logo paths, brand font class
-│   │   │   ├── tauri.ts              invoke wrappers (9 commands)
+│   │   │   ├── tauri.ts              invoke wrappers (17 commands)
 │   │   │   ├── types.ts              TS interfaces (Vault, Project, DiffResult…)
 │   │   │   └── utils.ts              cn() helper
 │   │   ├── global.d.ts               *.css module declaration
@@ -139,13 +141,18 @@ This removes the quarantine attribute. Then open the app normally.
 │   │   ├── models/
 │   │   │   ├── vault.rs              Vault, Project, SecurePayload
 │   │   │   └── diff.rs               DiffResult + diff_projects()
+│   │   ├── network/
+│   │   │   ├── discovery.rs          mDNS service discovery
+│   │   │   ├── transport.rs          Encrypted transfer over TCP
+│   │   │   └── types.rs              PeerInfo, ProjectSummary, SyncState
 │   │   ├── crypto/
 │   │   │   ├── key_derivation.rs     Argon2id → 32-byte key
 │   │   │   └── encryption.rs         ChaCha20Poly1305 encrypt/decrypt
 │   │   ├── storage/
 │   │   │   └── vault_file.rs         Save/load encrypted vault file
 │   │   ├── commands/
-│   │   │   └── vault_commands.rs     9 tauri::command functions
+│   │   │   │   ├── vault_commands.rs     Vault commands (unlock, save, delete…)
+│   │   │   │   └── sync_commands.rs      LAN sync commands (start, stop, download)
 │   ├── tauri.conf.json               Window config (fullscreen), allowlist, icons
 │   └── Cargo.toml                    Rust dependencies
 │
@@ -178,6 +185,13 @@ All commands return `Result<T, String>` for frontend consumption.
 | `vault_exists` | — | `bool` |
 | `change_password` | `old_password: String, new_password: String` | `()` |
 | `reset_vault` | — | `()` |
+| `start_lan_sync` | — | `()` |
+| `stop_lan_sync` | — | `()` |
+| `get_sync_status` | — | `SyncState` |
+| `get_peers` | — | `Vec<PeerInfo>` |
+| `get_peer_projects` | `peerDeviceName: String` | `Vec<ProjectSummary>` |
+| `sync_project_from_peer` | `peerDeviceName: String, projectId: String, password: String, sharePassword: String` | `Project` |
+| `set_device_name` | `name: String` | `()` |
 
 ## Data Models
 
@@ -192,6 +206,7 @@ pub struct Project {
     pub name: String,
     pub description: String,
     pub env_vars: BTreeMap<String, String>,
+    pub share_password: Option<String>,  // Optional password for LAN sync downloads
 }
 
 pub struct SecurePayload {
@@ -245,6 +260,7 @@ The frontend is a static Next.js export (`next build`, output in `desktop/out/`)
 | `uuid` 1 | Project identifiers |
 | `thiserror` 1 | Error types |
 | `rand` 0.8 | Salt & nonce generation |
+| `mdns-sd` 0.13 | LAN service discovery via mDNS |
 
 ---
 
