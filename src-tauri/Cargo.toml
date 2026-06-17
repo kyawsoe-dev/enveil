@@ -19,7 +19,7 @@ directories = "5"
 uuid = { version = "1", features = ["v4"] }
 thiserror = "1"
 rand = "0.8"
-mdns-sd = "0.12"
+mdns-sd = "0.13"
 tokio = { version = "1", features = ["net", "io-util", "macros", "sync"] }
 
 [features]
