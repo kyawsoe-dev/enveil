@@ -26,7 +26,7 @@ impl Mdnssd {
     pub fn start(&mut self) -> Result<(), String> {
         let daemon = ServiceDaemon::new().map_err(|e| format!("Failed to start mDNS daemon: {}", e))?;
 
-        let hostname = format!("{}.local.", self.device_name);
+        let hostname = format!("{}.local.", self.device_name.replace(' ', "-"));
         let service_info = ServiceInfo::new(
             SERVICE_TYPE,
             &self.device_name,

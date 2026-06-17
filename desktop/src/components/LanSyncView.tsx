@@ -28,6 +28,7 @@ export default function LanSyncView() {
   const [loading, setLoading] = useState(false);
   const [syncErr, setSyncErr] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [peerErrors, setPeerErrors] = useState<Record<string, string>>({});
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [peerProjects, setPeerProjects] = useState<Record<string, ProjectSummary[]>>({});
@@ -62,6 +63,7 @@ export default function LanSyncView() {
       if (status.active) {
         await lan.stopLanSync();
         setPeerProjects({});
+        setPeerErrors({});
       } else {
         await lan.startLanSync();
       }
@@ -89,6 +91,7 @@ export default function LanSyncView() {
     if (!status.active) {
       setPeerProjects({});
       setLoadedPeers(new Set());
+      setPeerErrors({});
       return;
     }
     const names: string[] = JSON.parse(peersKey);
@@ -101,6 +104,7 @@ export default function LanSyncView() {
         console.error(`Failed to fetch projects from ${name}:`, err);
         setPeerProjects((prev) => ({ ...prev, [name]: [] }));
         setLoadedPeers((prev) => { const n = new Set(prev); n.add(name); return n; });
+        setPeerErrors((prev) => ({ ...prev, [name]: String(err) }));
       });
     });
   }, [status.active, peersKey]);
@@ -291,9 +295,11 @@ export default function LanSyncView() {
                                 <Download className="h-3 w-3 shrink-0 ml-1" />
                               </Button>
                             ))
-                          ) : (
-                            <p className="text-xs text-muted-foreground py-1">No projects available</p>
-                          )
+                        ) : peerErrors[peer.device_name] ? (
+                          <p className="text-xs text-red-500 py-1 break-all">Error: {peerErrors[peer.device_name]}</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground py-1">No projects available</p>
+                        )
                         ) : (
                           <p className="text-xs text-muted-foreground py-1">Loading...</p>
                         )}
