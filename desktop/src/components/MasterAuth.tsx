@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useVault } from './VaultProvider';
 import { AppBrand } from './AppBrand';
+import { APP_VERSION } from '@/lib/brand';
 import * as tauri from '@/lib/tauri';
 
 type Mode = 'unlock' | 'create';
@@ -223,6 +224,9 @@ export default function MasterAuth() {
             </button>
           </div>
         )}
+        <p className="mt-5 text-center text-[10px] text-muted-foreground/40">
+          v{APP_VERSION}
+        </p>
       </motion.div>
     </div>
   );

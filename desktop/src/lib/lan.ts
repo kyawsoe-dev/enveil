@@ -42,13 +42,11 @@ export async function syncProjectFromPeer(
   peerDeviceName: string,
   projectId: string,
   password: string,
-  sharePassword: string,
 ): Promise<Project> {
   return invoke<Project>('sync_project_from_peer', {
     peerDeviceName,
     projectId,
     password,
-    sharePassword,
   });
 }
 

@@ -5,6 +5,11 @@ use crate::network::discovery::Mdnssd;
 use crate::network::transport::{request_peer_projects, request_project, SyncTransport};
 use crate::network::types::PeerInfo;
 
+fn random_session_key() -> String {
+    let bytes: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
+    hex::encode(bytes)
+}
+
 pub struct SyncAppState {
     pub peer_list: Arc<Mutex<HashMap<String, PeerInfo>>>,
     pub mdnssd: Mutex<Option<Mdnssd>>,
@@ -137,7 +142,6 @@ pub fn sync_project_from_peer(
     peer_device_name: String,
     project_id: String,
     password: String,
-    share_password: String,
     sync_state: tauri::State<SyncAppState>,
     vault_state: tauri::State<crate::commands::vault_commands::AppState>,
 ) -> Result<crate::models::Project, String> {
@@ -152,7 +156,8 @@ pub fn sync_project_from_peer(
         .clone();
     drop(peers);
 
-    let project = request_project(&peer, &project_id, &share_password)?;
+    let session_key = random_session_key();
+    let project = request_project(&peer, &project_id, &session_key)?;
 
     let mut vault_guard = vault_state.0.lock().map_err(|e| e.to_string())?;
     if let Some(ref mut vault) = *vault_guard {

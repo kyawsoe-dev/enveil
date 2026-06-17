@@ -153,8 +153,10 @@ fn handle_client(mut stream: TcpStream, vault: Arc<Mutex<Option<Vault>>>) {
 }
 
 pub fn request_peer_projects(peer: &PeerInfo) -> Result<Vec<ProjectSummary>, String> {
-    let mut stream = TcpStream::connect(format!("{}:{}", peer.ip, peer.port))
-        .map_err(|e| format!("Failed to connect: {}", e))?;
+    let addr = format!("{}:{}", peer.ip, peer.port);
+    eprintln!("[enveil] request_peer_projects connecting to {}", addr);
+    let mut stream = TcpStream::connect(&addr)
+        .map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
 
     let hello = SyncMessage::Hello {
         device_name: "ENVEIL".to_string(),
@@ -166,15 +168,20 @@ pub fn request_peer_projects(peer: &PeerInfo) -> Result<Vec<ProjectSummary>, Str
     send_message(&mut stream, &SyncMessage::ProjectListRequest)?;
 
     match read_message(&mut stream)? {
-        SyncMessage::ProjectListResponse { projects } => Ok(projects),
-        SyncMessage::Error { message } => Err(message),
-        _ => Err("Unexpected response".to_string()),
+        SyncMessage::ProjectListResponse { projects } => {
+            eprintln!("[enveil] Got {} projects from {}", projects.len(), addr);
+            Ok(projects)
+        }
+        SyncMessage::Error { message } => Err(format!("Peer error: {}", message)),
+        other => Err(format!("Unexpected response: {:?}", other)),
     }
 }
 
 pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Result<Project, String> {
-    let mut stream = TcpStream::connect(format!("{}:{}", peer.ip, peer.port))
-        .map_err(|e| format!("Failed to connect: {}", e))?;
+    let addr = format!("{}:{}", peer.ip, peer.port);
+    eprintln!("[enveil] request_project connecting to {} (project={})", addr, project_id);
+    let mut stream = TcpStream::connect(&addr)
+        .map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
 
     let hello = SyncMessage::Hello {
         device_name: "ENVEIL".to_string(),
@@ -197,12 +204,15 @@ pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Res
             name,
             description,
             env_vars,
-        } => Ok(Project {
-            id,
-            name,
-            description,
-            env_vars,
-        }),
+        } => {
+            eprintln!("[enveil] Got project '{}' from {}", name, addr);
+            Ok(Project {
+                id,
+                name,
+                description,
+                env_vars,
+            })
+        }
         SyncMessage::EncryptedProjectResponse {
             encrypted_data,
             nonce,
@@ -216,9 +226,10 @@ pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Res
             let plaintext = decrypt_payload(&payload, password).map_err(|e| e.to_string())?;
             let project: Project = serde_json::from_slice(&plaintext)
                 .map_err(|e| format!("Failed to parse decrypted project: {}", e))?;
+            eprintln!("[enveil] Got encrypted project '{}' from {}", project.name, addr);
             Ok(project)
         }
-        SyncMessage::Error { message } => Err(message),
-        _ => Err("Unexpected response".to_string()),
+        SyncMessage::Error { message } => Err(format!("Peer error: {}", message)),
+        other => Err(format!("Unexpected response: {:?}", other)),
     }
 }

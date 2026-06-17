@@ -186,10 +186,15 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_LOADING', isLoading: true });
     try {
       await tauri.resetVault();
+      // Stop LAN sync if running, so stale state is cleaned up
+      try { await import('@/lib/lan').then(m => m.stopLanSync()); } catch {}
     } catch (err) {
       dispatch({ type: 'SET_ERROR', error: String(err) });
       return;
     }
+    // Clear all persisted local state
+    localStorage.removeItem('enveil_device_name');
+    localStorage.removeItem('enveil_auto_lock_timeout');
     dispatch({ type: 'LOCK' });
   }, []);
 

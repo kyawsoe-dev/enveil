@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import {
@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useVault } from "./VaultProvider";
+import { APP_VERSION } from "@/lib/brand";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,44 @@ export default function Sidebar({
   const selected = state.selectedProjectId;
   const projects = state.vault?.projects ?? [];
   const [syncActive, setSyncActive] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('enveil_sidebar_width');
+      return saved ? Number(saved) : 224;
+    }
+    return 224;
+  });
+  const dragRef = useRef(false);
+  const widthRef = useRef(sidebarWidth);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { widthRef.current = sidebarWidth; }, [sidebarWidth]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const newWidth = Math.max(180, Math.min(400, ev.clientX));
+      widthRef.current = newWidth;
+      setSidebarWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      dragRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem('enveil_sidebar_width', String(widthRef.current));
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, []);
 
   useEffect(() => {
     const poll = async () => {
@@ -63,20 +102,24 @@ export default function Sidebar({
     return () => clearInterval(interval);
   }, []);
 
+  const displayWidth = open ? sidebarWidth : 40;
+
   return (
-    <motion.aside
-      animate={{ width: open ? 224 : 40 }}
-      transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="flex h-full flex-col border-r bg-sidebar overflow-hidden"
-    >
+    <div className="relative flex h-full shrink-0">
+      <motion.aside
+        ref={sidebarRef}
+        animate={{ width: displayWidth }}
+        transition={{ duration: 0.15, ease: 'easeInOut' }}
+        className="flex h-full flex-col border-r bg-sidebar overflow-hidden"
+      >
       {open ? (
         <>
-      <div className="flex items-center justify-between px-3 py-2.5 min-w-[224px]">
+      <div className="flex items-center justify-between px-3 py-2.5" style={{ minWidth: sidebarWidth }}>
         <div className="flex items-baseline gap-1.5">
           <span className="font-brand font-normal tracking-tight text-sidebar-foreground text-lg">
             ENVEIL
           </span>
-          <span className="text-[10px] font-mono text-sidebar-foreground/60 leading-none">v0.1.0</span>
+          <span className="text-[10px] font-mono text-sidebar-foreground/60 leading-none">v{APP_VERSION}</span>
         </div>
         <div className="flex items-center gap-0.5">
           <UsageGuide />
@@ -117,7 +160,7 @@ export default function Sidebar({
 
       <Separator />
 
-      <nav className="flex flex-col gap-0.5 px-2 py-3 min-w-[224px]">
+      <nav className="flex flex-col gap-0.5 px-2 py-3">
         <p className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           Views
         </p>
@@ -159,7 +202,7 @@ export default function Sidebar({
 
       <Separator />
 
-      <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-3 min-w-[224px]">
+      <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-3">
         <div className="flex items-center justify-between px-2 pb-1">
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Projects
@@ -208,7 +251,7 @@ export default function Sidebar({
 
       <Separator />
 
-      <div className="space-y-1 p-2 min-w-[224px]">
+      <div className="space-y-1 p-2">
         <a
           href="https://github.com/kyawsoe-dev/enveil"
           target="_blank"
@@ -242,6 +285,13 @@ export default function Sidebar({
         </div>
       )}
     </motion.aside>
+    {open && (
+      <div
+        className="absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize hover:w-1.5 hover:bg-primary/30 transition-all"
+        onMouseDown={handleMouseDown}
+      />
+    )}
+    </div>
   );
 }
 

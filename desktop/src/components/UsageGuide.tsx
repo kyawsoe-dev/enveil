@@ -22,14 +22,14 @@ export default function UsageGuide() {
           <CircleHelp className="h-3.5 w-3.5" />
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogHeader className="shrink-0">
           <DialogTitle>How to Use {APP_NAME}</DialogTitle>
           <DialogDescription className="sr-only">
             A guide to managing projects, environment variables, and vault security in {APP_NAME}.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 pt-2 text-sm">
+        <div className="space-y-4 overflow-y-auto pr-1 text-sm flex-1 min-h-0">
           <section>
             <h3 className="flex items-center gap-1.5 font-semibold mb-1">
               <Plus className="h-3.5 w-3.5 text-primary" /> Add a Project
@@ -122,40 +122,40 @@ export default function UsageGuide() {
               Share projects with teammates on the same local network. Open the <strong>LAN Sync</strong> section in the sidebar and click <strong>Start</strong>. Give each device a unique name (click the pencil icon next to your device name).
             </p>
             <div className="mt-2 overflow-hidden rounded-lg border text-xs">
-              <table className="w-full">
+              <table className="w-full table-fixed">
                 <thead>
                   <tr className="bg-muted/50 text-left text-muted-foreground">
-                    <th className="px-3 py-1.5 font-medium">Step</th>
-                    <th className="px-3 py-1.5 font-medium">Device A (has projects 1, 2, 3)</th>
-                    <th className="px-3 py-1.5 font-medium">Device B (has projects 4, 5)</th>
+                    <th className="w-10 px-2 py-1.5 font-medium">Step</th>
+                    <th className="px-2 py-1.5 font-medium">Device A (has projects 1, 2, 3)</th>
+                    <th className="px-2 py-1.5 font-medium">Device B (has projects 4, 5)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-t border-border/40">
-                    <td className="px-3 py-1.5 font-medium">1</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">Click <strong>Start</strong> in LAN Sync</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">Click <strong>Start</strong> in LAN Sync</td>
+                    <td className="px-2 py-1.5 font-medium text-center">1</td>
+                    <td className="px-2 py-1.5 text-muted-foreground break-words">Click <strong>Start</strong> in LAN Sync</td>
+                    <td className="px-2 py-1.5 text-muted-foreground break-words">Click <strong>Start</strong> in LAN Sync</td>
                   </tr>
                   <tr className="border-t border-border/40">
-                    <td className="px-3 py-1.5 font-medium">2</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">See <strong>Device B</strong> appear in your peer list</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">See <strong>Device A</strong> appear in your peer list</td>
+                    <td className="px-2 py-1.5 font-medium text-center">2</td>
+                    <td className="px-2 py-1.5 text-muted-foreground break-words">See <strong>Device B</strong> appear in your peer list</td>
+                    <td className="px-2 py-1.5 text-muted-foreground break-words">See <strong>Device A</strong> appear in your peer list</td>
                   </tr>
                   <tr className="border-t border-border/40">
-                    <td className="px-3 py-1.5 font-medium">3</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">Under Device B, you see B's projects <strong>4, 5</strong> listed — click <strong>4</strong> to <strong>download</strong> it</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">Under Device A, you see A's projects <strong>1, 2, 3</strong> listed — click <strong>1</strong> to <strong>download</strong> it</td>
+                    <td className="px-2 py-1.5 font-medium text-center">3</td>
+                    <td className="px-2 py-1.5 text-muted-foreground break-words">Under Device B, you see B's projects <strong>4, 5</strong> — click to <strong>download</strong></td>
+                    <td className="px-2 py-1.5 text-muted-foreground break-words">Under Device A, you see A's projects <strong>1, 2, 3</strong> — click to <strong>download</strong></td>
                   </tr>
                   <tr className="border-t border-border/40">
-                    <td className="px-3 py-1.5 font-medium">4</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">Project <strong>4</strong> now appears in your vault (alongside 1, 2, 3)</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">Project <strong>1</strong> now appears in their vault (alongside 4, 5)</td>
+                    <td className="px-2 py-1.5 font-medium text-center">4</td>
+                    <td className="px-2 py-1.5 text-muted-foreground break-words">Project <strong>4</strong> appears in your vault (alongside 1, 2, 3)</td>
+                    <td className="px-2 py-1.5 text-muted-foreground break-words">Project <strong>1</strong> appears in your vault (alongside 4, 5)</td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <p className="text-muted-foreground mt-2 text-xs">
-              All data stays on your LAN. Both devices must be on the same network. The vault password is required when syncing. Rename each device using the pencil icon to easily tell them apart.
+              All data stays on your LAN. Both devices must be on the same network. Transfers are encrypted with a random session key — no plaintext ever leaves your machine. Rename each device using the pencil icon to easily tell them apart.
             </p>
           </section>
 

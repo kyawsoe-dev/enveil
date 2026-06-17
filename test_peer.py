@@ -1,29 +1,104 @@
 #!/usr/bin/env python3
 """Fake ENVEIL peer for testing LAN sync without a second device.
 
+Simulates the full ENVEIL peer behavior: vault lock/unlock state,
+mDNS registration, TCP server with all protocol messages.
+
 Usage:
-    python3 test_peer.py --name "Test-Device" --port 51995
+    python3 test_peer.py --name "Test-Device"
 
-Runs a mock ENVEIL peer that:
-  - Registers mDNS service so the real app discovers it
-  - Responds to project list requests with fake projects
-  - Responds to download requests (no encryption)
+Commands (type in terminal):
+    unlock <password>   Unlock vault (default password: test123)
+    lock                Lock vault
+    status              Show current state
+    help                Show commands
+    quit / Ctrl+C       Stop
 
-Press Ctrl+C to stop.
+When locked:  ProjectListRequest returns empty [].
+When unlocked: Returns 3 fake projects.
 """
 import argparse
 import json
+import os
+import signal
 import socket
 import struct
+import subprocess
+import sys
 import threading
 import time
 
 try:
-    from zeroconf import Zeroconf, ServiceInfo
+    from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
+    from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
+    HAS_CRYPTO = True
 except ImportError:
-    print("Install zeroconf: pip3 install zeroconf")
-    raise
+    HAS_CRYPTO = False
 
+VAULT_PASSWORD = "test123"
+vault_locked = True
+vault_lock = threading.Lock()
+
+
+# ---------------------------------------------------------------------------
+# Fake project data
+# ---------------------------------------------------------------------------
+
+FAKE_PROJECTS_DATA = [
+    {
+        "id": "proj-001",
+        "name": "example-project-alpha",
+        "description": "Example project for testing LAN sync",
+        "env_vars": {
+            "EXAMPLE_KEY1": "value-aaaa",
+            "EXAMPLE_KEY2": "value-bbbb",
+            "EXAMPLE_KEY3": "value-cccc",
+            "EXAMPLE_KEY4": "value-dddd",
+            "EXAMPLE_KEY5": "value-eeee",
+            "EXAMPLE_KEY6": "value-ffff",
+            "EXAMPLE_KEY7": "value-gggg",
+            "EXAMPLE_KEY8": "value-hhhh",
+        },
+    },
+    {
+        "id": "proj-002",
+        "name": "example-project-beta",
+        "description": "Another example project for LAN sync testing",
+        "env_vars": {
+            "EXAMPLE_KEY_A": "value-01",
+            "EXAMPLE_KEY_B": "value-02",
+            "EXAMPLE_KEY_C": "value-03",
+            "EXAMPLE_KEY_D": "value-04",
+        },
+    },
+    {
+        "id": "proj-003",
+        "name": "example-project-gamma",
+        "description": "Third example project for testing",
+        "env_vars": {
+            "EXAMPLE_VAR1": "test-value-1",
+            "EXAMPLE_VAR2": "test-value-2",
+            "EXAMPLE_VAR3": "test-value-3",
+            "EXAMPLE_VAR4": "test-value-4",
+            "EXAMPLE_VAR5": "test-value-5",
+            "EXAMPLE_VAR6": "test-value-6",
+        },
+    },
+]
+
+
+def make_project_summary(data):
+    return {
+        "id": data["id"],
+        "name": data["name"],
+        "description": data["description"],
+        "env_count": len(data["env_vars"]),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Protocol helpers
+# ---------------------------------------------------------------------------
 
 def send_msg(conn, msg):
     data = json.dumps(msg).encode()
@@ -45,14 +120,42 @@ def recv_msg(conn):
     return json.loads(data)
 
 
-FAKE_PROJECTS = [
-    {"id": "proj-001", "name": "staging-api-keys", "description": "Staging environment credentials", "env_count": 8},
-    {"id": "proj-002", "name": "prod-db-creds", "description": "Production database credentials", "env_count": 4},
-    {"id": "proj-003", "name": "s3-bucket-keys", "description": "S3 access keys and secrets", "env_count": 6},
-]
+# ---------------------------------------------------------------------------
+# Encryption (matches Rust: Argon2id + ChaCha20-Poly1305)
+# ---------------------------------------------------------------------------
 
+if HAS_CRYPTO:
+    def encrypt_project(project_json: bytes, password: str) -> dict:
+        salt = os.urandom(16)
+        kdf = Argon2id(
+            salt=salt,
+            length=32,
+            memory_cost=19456,
+            time_cost=2,
+            parallelism=1,
+        )
+        key = kdf.derive(password.encode())
+        nonce = os.urandom(12)
+        aead = ChaCha20Poly1305(key)
+        ct = aead.encrypt(nonce, project_json, None)
+        return {
+            "type": "EncryptedProjectResponse",
+            "encrypted_data": list(ct),
+            "nonce": list(nonce),
+            "salt": list(salt),
+        }
+else:
+    def encrypt_project(project_json: bytes, password: str) -> dict:
+        print("  [WARN] cryptography not installed — sending unencrypted")
+        return None
+
+
+# ---------------------------------------------------------------------------
+# TCP client handler
+# ---------------------------------------------------------------------------
 
 def handle_client(conn, addr):
+    global vault_locked
     print(f"  Client connected: {addr}")
     try:
         while True:
@@ -60,85 +163,191 @@ def handle_client(conn, addr):
             if msg is None:
                 break
             typ = msg.get("type")
+
             if typ == "Hello":
                 print(f"  Hello from: {msg.get('device_name')} v{msg.get('app_version')}")
                 send_msg(conn, {"type": "Ack"})
+
             elif typ == "ProjectListRequest":
-                print(f"  Project list requested → sending {len(FAKE_PROJECTS)} projects")
-                send_msg(conn, {"type": "ProjectListResponse", "projects": FAKE_PROJECTS})
+                with vault_lock:
+                    locked = vault_locked
+                if locked:
+                    print("  Project list requested -> vault LOCKED, returning []")
+                    send_msg(conn, {"type": "ProjectListResponse", "projects": []})
+                else:
+                    summaries = [make_project_summary(d) for d in FAKE_PROJECTS_DATA]
+                    print(f"  Project list requested -> sending {len(summaries)} projects")
+                    send_msg(conn, {"type": "ProjectListResponse", "projects": summaries})
+
             elif typ == "ProjectRequest":
                 pid = msg.get("project_id")
-                pwd = msg.get("password", "")
-                print(f"  Download requested: {pid} (password: {'yes' if pwd else 'no'})")
-                proj = next((p for p in FAKE_PROJECTS if p["id"] == pid), None)
-                if proj:
-                    send_msg(conn, {
-                        "type": "ProjectResponse",
-                        "id": proj["id"],
-                        "name": proj["name"],
-                        "description": proj["description"],
-                        "env_vars": {
-                            "API_KEY": "sk-test-123456",
-                            "DB_PASSWORD": "s3cret!",
-                            "HOST": "localhost",
-                            "PORT": "5432",
-                            "USER": "admin",
-                            "REGION": "us-east-1",
-                            "BUCKET": "my-bucket",
-                            "SECRET": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-                        },
-                    })
-                else:
+                share_pwd = msg.get("password", "")
+                with vault_lock:
+                    locked = vault_locked
+
+                if locked:
+                    print(f"  Download requested: {pid} — vault LOCKED, refusing")
+                    send_msg(conn, {"type": "Error", "message": "Vault is locked"})
+                    continue
+
+                data = next((d for d in FAKE_PROJECTS_DATA if d["id"] == pid), None)
+                if not data:
+                    print(f"  Download requested: {pid} — not found")
                     send_msg(conn, {"type": "Error", "message": f"Project {pid} not found"})
+                    continue
+
+                print(f"  Download requested: {pid} (session key: {'yes' if share_pwd else 'no'})")
+
+                if share_pwd and HAS_CRYPTO:
+                    project_json = json.dumps({
+                        "id": data["id"],
+                        "name": data["name"],
+                        "description": data["description"],
+                        "env_vars": data["env_vars"],
+                    }).encode()
+                    encrypted = encrypt_project(project_json, share_pwd)
+                    if encrypted:
+                        send_msg(conn, encrypted)
+                        continue
+
+                # No share password or crypto unavailable: send unencrypted
+                resp = {
+                    "type": "ProjectResponse",
+                    "id": data["id"],
+                    "name": data["name"],
+                    "description": data["description"],
+                    "env_vars": data["env_vars"],
+                }
+                send_msg(conn, resp)
+
             else:
                 print(f"  Unknown message type: {typ}")
                 send_msg(conn, {"type": "Error", "message": f"Unexpected: {typ}"})
+
     except (ConnectionResetError, BrokenPipeError):
+        pass
+    except json.JSONDecodeError:
         pass
     finally:
         conn.close()
         print(f"  Client disconnected: {addr}")
 
 
+# ---------------------------------------------------------------------------
+# Stdin command loop
+# ---------------------------------------------------------------------------
+
+def cmd_loop():
+    global vault_locked
+    while True:
+        try:
+            line = sys.stdin.readline()
+        except KeyboardInterrupt:
+            break
+        if not line:
+            break
+        line = line.strip()
+        parts = line.split()
+        if not parts:
+            continue
+        cmd = parts[0].lower()
+        if cmd == "unlock":
+            if len(parts) < 2:
+                print("  Usage: unlock <password>")
+            elif parts[1] == VAULT_PASSWORD:
+                with vault_lock:
+                    vault_locked = False
+                print("  Vault UNLOCKED — projects now visible to peers")
+            else:
+                print("  Wrong password")
+        elif cmd == "lock":
+            with vault_lock:
+                vault_locked = True
+            print("  Vault LOCKED — projects hidden from peers")
+        elif cmd == "status":
+            with vault_lock:
+                locked = vault_locked
+            print(f"  Vault: {'LOCKED' if locked else 'UNLOCKED'}")
+            print(f"  Vault password: {VAULT_PASSWORD}")
+            print(f"  Crypto available: {HAS_CRYPTO}")
+        elif cmd in ("quit", "exit", "q"):
+            print("  Stopping...")
+            os._exit(0)
+        elif cmd == "help":
+            print("  Commands:")
+            print("    unlock <password>   Unlock vault")
+            print("    lock                Lock vault")
+            print("    status              Show state")
+            print("    help                This help")
+            print("    quit                Stop")
+        else:
+            print(f"  Unknown command: {cmd}")
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
 def main():
-    parser = argparse.ArgumentParser(description="Fake ENVEIL peer for testing")
+    parser = argparse.ArgumentParser(description="Full ENVEIL test peer")
     parser.add_argument("--name", default="Test-Device", help="Device name to advertise")
-    parser.add_argument("--port", type=int, default=51995, help="TCP port to listen on")
+    parser.add_argument("--port", type=int, default=0, help="TCP port (0 = auto)")
     args = parser.parse_args()
+
+    port = args.port or 0
+    name = args.name.replace(" ", "-")
 
     # Start TCP server
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind(("0.0.0.0", args.port))
+    server.bind(("0.0.0.0", port))
     server.listen(5)
-    print(f"TCP server listening on port {args.port}")
+    actual_port = server.getsockname()[1]
+    print(f"TCP server listening on port {actual_port}")
 
-    # Register mDNS
-    zc = Zeroconf()
-    info = ServiceInfo(
-        type_="_enveil._tcp.local.",
-        name=f"{args.name}._enveil._tcp.local.",
-        port=args.port,
-        properties={},
-        server=f"{args.name}.local.",
+    # Register mDNS via system dns-sd command
+    proc = subprocess.Popen(
+        ["dns-sd", "-R", name, "_enveil._tcp", "local.", str(actual_port)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
-    zc.register_service(info)
-    print(f"mDNS registered as '{args.name}'")
-    print(f"\n  Now open ENVEIL → LAN Sync → Start")
-    print(f"  You should see '{args.name}' appear as a peer")
-    print(f"  Press the Download button to fetch fake projects\n")
-    print("Press Ctrl+C to stop\n")
+    time.sleep(1)
+    if proc.poll() is not None:
+        print("ERROR: dns-sd failed to start (already running?)")
+        server.close()
+        sys.exit(1)
+    print(f"mDNS registered as '{name}' via dns-sd (PID {proc.pid})")
+    if not HAS_CRYPTO:
+        print("  [WARN] 'cryptography' package not installed — encrypted sync not available")
+        print("         Install: pip install cryptography\n")
+
+    print(f"  Vault password: {VAULT_PASSWORD}  (type 'unlock {VAULT_PASSWORD}' to unlock)")
+    print(f"  Start ENVEIL -> LAN Sync -> you'll see '{name}' as a peer")
+    print(f"  Download projects and type commands here to test lock/unlock\n")
+
+    print("Commands: unlock <pwd>, lock, status, help, quit")
+    print("─" * 50)
+
+    def cleanup(*_):
+        print("\nShutting down...")
+        proc.terminate()
+        proc.wait()
+        server.close()
+
+    signal.signal(signal.SIGINT, cleanup)
+    signal.signal(signal.SIGTERM, cleanup)
+
+    # Start stdin command thread
+    t = threading.Thread(target=cmd_loop, daemon=True)
+    t.start()
 
     try:
         while True:
             conn, addr = server.accept()
             threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
-    except KeyboardInterrupt:
-        print("\nShutting down...")
-    finally:
-        zc.unregister_service(info)
-        zc.close()
-        server.close()
+    except (KeyboardInterrupt, OSError):
+        cleanup()
+        sys.exit(0)
 
 
 if __name__ == "__main__":

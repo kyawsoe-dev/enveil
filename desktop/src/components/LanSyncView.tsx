@@ -111,13 +111,11 @@ export default function LanSyncView() {
 
   const syncProject = async (peer: PeerInfo, projectId: string, projectName: string) => {
     if (!state.password) return;
-    const sp = prompt(`Enter share password for "${projectName}" (leave empty for no encryption):`);
-    if (sp === null) return;
     setLoading(true);
     setSyncErr(null);
     setSuccessMsg(null);
     try {
-      await lan.syncProjectFromPeer(peer.device_name, projectId, state.password, sp);
+      await lan.syncProjectFromPeer(peer.device_name, projectId, state.password);
       await refreshVault();
       setSuccessMsg(`"${projectName}" synced from ${peer.device_name}`);
       setTimeout(() => setSuccessMsg(null), 3000);
@@ -280,20 +278,26 @@ export default function LanSyncView() {
                         {loadedPeers.has(peer.device_name) ? (
                           peerProjects[peer.device_name]?.length > 0 ? (
                             peerProjects[peer.device_name].map((p) => (
-                              <Button
-                                key={p.id}
-                                variant="outline"
-                                size="sm"
-                                onClick={() => syncProject(peer, p.id, p.name)}
-                                disabled={loading}
-                                className="h-7 w-full justify-between text-xs font-mono"
-                              >
-                                <span className="truncate">{p.name}</span>
-                                <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
-                                  {p.env_count} vars
-                                </span>
-                                <Download className="h-3 w-3 shrink-0 ml-1" />
-                              </Button>
+                              <div
+                                  key={p.id}
+                                  className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-xs font-mono"
+                                >
+                                  <span className="truncate">{p.name}</span>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+                                      {p.env_count} vars
+                                    </span>
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={() => syncProject(peer, p.id, p.name)}
+                                      disabled={loading}
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
                             ))
                         ) : peerErrors[peer.device_name] ? (
                           <p className="text-xs text-red-500 py-1 break-all">Error: {peerErrors[peer.device_name]}</p>
