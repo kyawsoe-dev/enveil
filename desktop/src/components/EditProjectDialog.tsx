@@ -83,10 +83,11 @@ export default function EditProjectDialog({
             <label className="mb-1 block text-xs font-medium text-muted-foreground">Project Name</label>
             <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value.slice(0, 128))}
               className="text-sm"
               autoFocus
             />
+            <p className="mt-1 text-[10px] text-muted-foreground/60">{name.length}/128</p>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">Description</label>

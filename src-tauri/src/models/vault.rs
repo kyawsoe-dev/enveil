@@ -44,6 +44,7 @@ pub struct Project {
     pub name: String,
     pub description: String,
     pub env_vars: BTreeMap<String, String>,
+    pub share_password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

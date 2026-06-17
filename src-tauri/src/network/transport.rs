@@ -92,11 +92,13 @@ fn handle_client(mut stream: TcpStream, vault: Arc<Mutex<Option<Vault>>>) {
                     Some(v) => v
                         .projects
                         .iter()
+                        .filter(|p| p.share_password.is_some())
                         .map(|p| ProjectSummary {
                             id: p.id.clone(),
                             name: p.name.clone(),
                             description: p.description.clone(),
                             env_count: p.env_vars.len(),
+                            has_password: true,
                         })
                         .collect(),
                     None => vec![],
@@ -113,15 +115,13 @@ fn handle_client(mut stream: TcpStream, vault: Arc<Mutex<Option<Vault>>>) {
 
                 let response = match project {
                     Some(p) => {
-                        let json = serde_json::to_vec(&p).unwrap_or_default();
-                        if password.is_empty() {
-                            SyncMessage::ProjectResponse {
-                                id: p.id,
-                                name: p.name,
-                                description: p.description,
-                                env_vars: p.env_vars,
+                        let is_correct = p.share_password.as_deref() == Some(&password);
+                        if !is_correct {
+                            SyncMessage::Error {
+                                message: "Incorrect share password".to_string(),
                             }
                         } else {
+                            let json = serde_json::to_vec(&p).unwrap_or_default();
                             match encrypt_payload(&json, &password) {
                                 Ok(payload) => SyncMessage::EncryptedProjectResponse {
                                     encrypted_data: payload.ciphertext,
@@ -211,6 +211,7 @@ pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Res
                 name,
                 description,
                 env_vars,
+                share_password: None,
             })
         }
         SyncMessage::EncryptedProjectResponse {

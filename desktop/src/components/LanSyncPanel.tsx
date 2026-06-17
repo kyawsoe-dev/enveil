@@ -95,7 +95,7 @@ export default function LanSyncPanel() {
     setSyncErr(null);
     setSuccessMsg(null);
     try {
-      await lan.syncProjectFromPeer(peer.device_name, projectId, state.password);
+      await lan.syncProjectFromPeer(peer.device_name, projectId, state.password, '');
       await refreshVault();
       setSuccessMsg(`Project synced from ${peer.device_name}`);
       setTimeout(() => setSuccessMsg(null), 3000);

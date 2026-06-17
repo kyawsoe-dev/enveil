@@ -74,7 +74,6 @@ fn main() {
                 }
                 ServiceEvent::SearchStarted(_) => println!("  Search started"),
                 ServiceEvent::SearchStopped(_) => println!("  Search stopped"),
-                other => println!("  Other: {:?}", other),
             }
         }
     });

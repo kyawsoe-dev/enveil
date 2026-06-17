@@ -14,6 +14,10 @@ import {
   Loader2,
   Pencil,
   Globe,
+  Lock,
+  Eye,
+  EyeOff,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +38,9 @@ export default function LanSyncView() {
   const [peerProjects, setPeerProjects] = useState<Record<string, ProjectSummary[]>>({});
   const [loadedPeers, setLoadedPeers] = useState<Set<string>>(new Set());
   const [refreshingPeers, setRefreshingPeers] = useState(false);
+  const [requestingProject, setRequestingProject] = useState<{ peer: PeerInfo; id: string; name: string } | null>(null);
+  const [sharePassword, setSharePassword] = useState('');
+  const [showSharePwd, setShowSharePwd] = useState(false);
 
   const status = syncState ?? { active: false, peers: [], my_device_name: '', port: 0 };
 
@@ -109,15 +116,19 @@ export default function LanSyncView() {
     });
   }, [status.active, peersKey]);
 
-  const syncProject = async (peer: PeerInfo, projectId: string, projectName: string) => {
-    if (!state.password) return;
+  const confirmSync = async () => {
+    if (!requestingProject || !state.password) return;
+    const { peer, id, name } = requestingProject;
+    setRequestingProject(null);
+    setSharePassword('');
+    setShowSharePwd(false);
     setLoading(true);
     setSyncErr(null);
     setSuccessMsg(null);
     try {
-      await lan.syncProjectFromPeer(peer.device_name, projectId, state.password);
+      await lan.syncProjectFromPeer(peer.device_name, id, state.password, sharePassword);
       await refreshVault();
-      setSuccessMsg(`"${projectName}" synced from ${peer.device_name}`);
+      setSuccessMsg(`"${name}" synced from ${peer.device_name}`);
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err) {
       setSyncErr(String(err));
@@ -126,11 +137,65 @@ export default function LanSyncView() {
     }
   };
 
+  const syncProject = (peer: PeerInfo, project: ProjectSummary) => {
+    if (!state.password) return;
+    setRequestingProject({ peer, id: project.id, name: project.name });
+    setSharePassword('');
+    setShowSharePwd(false);
+  };
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex items-center justify-between border-b px-6 py-3">
         <div className="flex items-center gap-2">
-          {status.active ? (
+      {requestingProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-sm rounded-lg border bg-card p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-medium">Download &ldquo;{requestingProject.name}&rdquo;</p>
+              <button
+                onClick={() => { setRequestingProject(null); setSharePassword(''); setShowSharePwd(false); }}
+                className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">from {requestingProject.peer.device_name}</p>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              Share password
+            </label>
+            <div className="relative mb-3">
+              <Input
+                type={showSharePwd ? 'text' : 'password'}
+                value={sharePassword}
+                onChange={(e) => setSharePassword(e.target.value)}
+                placeholder="Enter the share password set by the sender"
+                className="h-8 pr-9 text-xs"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter') confirmSync(); }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowSharePwd(!showSharePwd)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showSharePwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+            <div className="flex items-center gap-2 justify-end">
+              <Button variant="ghost" size="sm" onClick={() => { setRequestingProject(null); setSharePassword(''); setShowSharePwd(false); }}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={confirmSync} disabled={!sharePassword.trim()} className="gap-1">
+                <Download className="h-3 w-3" />
+                Download
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {status.active ? (
             <Wifi className="h-5 w-5 text-emerald-500" />
           ) : (
             <WifiOff className="h-5 w-5 text-muted-foreground" />
@@ -243,7 +308,7 @@ export default function LanSyncView() {
                   ) : (
                     <RefreshCw className="h-3 w-3" />
                   )}
-                  Clear Cache
+                  Refresh
                 </Button>
               </div>
             </div>
@@ -282,7 +347,10 @@ export default function LanSyncView() {
                                   key={p.id}
                                   className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-xs font-mono"
                                 >
-                                  <span className="truncate">{p.name}</span>
+                                  <span className="truncate flex items-center gap-1.5">
+                                    {p.has_password && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+                                    {p.name}
+                                  </span>
                                   <div className="flex items-center gap-2 shrink-0">
                                     <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">
                                       {p.env_count} vars
@@ -291,7 +359,7 @@ export default function LanSyncView() {
                                       variant="outline"
                                       size="icon"
                                       className="h-6 w-6"
-                                      onClick={() => syncProject(peer, p.id, p.name)}
+                                      onClick={() => syncProject(peer, p)}
                                       disabled={loading}
                                     >
                                       <Download className="h-3 w-3" />

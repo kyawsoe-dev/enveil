@@ -16,6 +16,8 @@ import {
   PanelLeft,
   Github,
   Wifi,
+  Lock,
+  Copy,
 } from "lucide-react";
 import UsageGuide from "./UsageGuide";
 import EditProjectDialog from "./EditProjectDialog";
@@ -45,7 +47,7 @@ export default function Sidebar({
   open: boolean;
   onToggle: () => void;
 }) {
-  const { state, selectProject, setView, lock, saveProject, deleteProject } =
+  const { state, selectProject, setView, lock, saveProject, deleteProject, duplicateProject } =
     useVault();
   const { theme, setTheme } = useTheme();
   const selected = state.selectedProjectId;
@@ -229,6 +231,7 @@ export default function Sidebar({
                 {p.name.charAt(0).toUpperCase()}
               </span>
               <span className="truncate">{p.name}</span>
+              {p.share_password && <Lock className="h-3 w-3 text-amber-500 shrink-0" />}
             </button>
             <div
               className={cn(
@@ -236,6 +239,13 @@ export default function Sidebar({
                 selected === p.id && "opacity-100",
               )}
             >
+              <button
+                onClick={() => duplicateProject(p)}
+                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                title="Duplicate project"
+              >
+                <Copy className="h-3 w-3" />
+              </button>
               <DeleteProjectDialog project={p} onDelete={deleteProject} compact />
               <EditProjectDialog project={p} onSave={saveProject} compact />
             </div>
@@ -344,11 +354,12 @@ function AddProjectDialog({
             </label>
             <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value.slice(0, 128))}
               placeholder="my-service"
               className="font-mono text-sm"
               autoFocus
             />
+            <p className="mt-1 text-[10px] text-muted-foreground/60">{name.length}/128</p>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">

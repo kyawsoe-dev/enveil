@@ -14,6 +14,7 @@ pub struct ProjectSummary {
     pub name: String,
     pub description: String,
     pub env_count: usize,
+    pub has_password: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

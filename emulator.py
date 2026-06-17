@@ -29,8 +29,8 @@ import threading
 import time
 
 try:
-    from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
-    from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
+    from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305  # type: ignore[import-untyped]
+    from cryptography.hazmat.primitives.kdf.argon2 import Argon2id  # type: ignore[import-untyped]
     HAS_CRYPTO = True
 except ImportError:
     HAS_CRYPTO = False
@@ -45,10 +45,27 @@ vault_lock = threading.Lock()
 # ---------------------------------------------------------------------------
 
 FAKE_PROJECTS_DATA = [
+     {
+        "id": "proj-test",
+        "name": "example-project-test",
+        "description": "Example project for testing LAN sync",
+        "share_password": "test-share-1",
+        "env_vars": {
+            "EXAMPLE_KEY1": "value-aaaa",
+            "EXAMPLE_KEY2": "value-bbbb",
+            "EXAMPLE_KEY3": "value-cccc",
+            "EXAMPLE_KEY4": "value-dddd",
+            "EXAMPLE_KEY5": "value-eeee",
+            "EXAMPLE_KEY6": "value-ffff",
+            "EXAMPLE_KEY7": "value-gggg",
+            "EXAMPLE_KEY8": "value-hhhh",
+        },
+    },
     {
         "id": "proj-001",
         "name": "example-project-alpha",
         "description": "Example project for testing LAN sync",
+        "share_password": "test-share-1",
         "env_vars": {
             "EXAMPLE_KEY1": "value-aaaa",
             "EXAMPLE_KEY2": "value-bbbb",
@@ -64,6 +81,7 @@ FAKE_PROJECTS_DATA = [
         "id": "proj-002",
         "name": "example-project-beta",
         "description": "Another example project for LAN sync testing",
+        "share_password": "test-share-2",
         "env_vars": {
             "EXAMPLE_KEY_A": "value-01",
             "EXAMPLE_KEY_B": "value-02",
@@ -75,6 +93,7 @@ FAKE_PROJECTS_DATA = [
         "id": "proj-003",
         "name": "example-project-gamma",
         "description": "Third example project for testing",
+        "share_password": "test-share-3",
         "env_vars": {
             "EXAMPLE_VAR1": "test-value-1",
             "EXAMPLE_VAR2": "test-value-2",
@@ -93,6 +112,7 @@ def make_project_summary(data):
         "name": data["name"],
         "description": data["description"],
         "env_count": len(data["env_vars"]),
+        "has_password": True,
     }
 
 
@@ -175,8 +195,9 @@ def handle_client(conn, addr):
                     print("  Project list requested -> vault LOCKED, returning []")
                     send_msg(conn, {"type": "ProjectListResponse", "projects": []})
                 else:
-                    summaries = [make_project_summary(d) for d in FAKE_PROJECTS_DATA]
-                    print(f"  Project list requested -> sending {len(summaries)} projects")
+                    shared = [d for d in FAKE_PROJECTS_DATA if d.get("share_password")]
+                    summaries = [make_project_summary(d) for d in shared]
+                    print(f"  Project list requested -> sending {len(summaries)} shared projects")
                     send_msg(conn, {"type": "ProjectListResponse", "projects": summaries})
 
             elif typ == "ProjectRequest":
@@ -198,19 +219,27 @@ def handle_client(conn, addr):
 
                 print(f"  Download requested: {pid} (session key: {'yes' if share_pwd else 'no'})")
 
-                if share_pwd and HAS_CRYPTO:
-                    project_json = json.dumps({
-                        "id": data["id"],
-                        "name": data["name"],
-                        "description": data["description"],
-                        "env_vars": data["env_vars"],
-                    }).encode()
+                expected_pwd = data.get("share_password", "")
+                if share_pwd != expected_pwd:
+                    print(f"  Incorrect share password for {pid}")
+                    send_msg(conn, {"type": "Error", "message": "Incorrect share password"})
+                    continue
+
+                project_json = json.dumps({
+                    "id": data["id"],
+                    "name": data["name"],
+                    "description": data["description"],
+                    "env_vars": data["env_vars"],
+                    "share_password": data.get("share_password"),
+                }).encode()
+
+                if HAS_CRYPTO:
                     encrypted = encrypt_project(project_json, share_pwd)
                     if encrypted:
                         send_msg(conn, encrypted)
                         continue
 
-                # No share password or crypto unavailable: send unencrypted
+                # No crypto available: send unencrypted
                 resp = {
                     "type": "ProjectResponse",
                     "id": data["id"],

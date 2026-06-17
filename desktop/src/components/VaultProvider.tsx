@@ -95,6 +95,7 @@ interface VaultContextValue {
   resetVault: () => Promise<void>;
   saveProject: (project: Project) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
+  duplicateProject: (project: Project) => Promise<void>;
   selectProject: (id: string | null) => void;
   setView: (view: AppView) => void;
   runDiff: (a: string, b: string) => Promise<void>;
@@ -248,6 +249,30 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     [state.password, state.vault, state.selectedProjectId],
   );
 
+  const duplicateProject = useCallback(
+    async (project: Project) => {
+      const prefix = project.name.replace(/\s*\(copy(?: \d+)?\)$/, '').trim();
+      const esc = prefix.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+      const existing = (state.vault?.projects ?? [])
+        .filter((p) => p.id !== project.id)
+        .map((p) => {
+          const m = p.name.match(new RegExp(`^${esc}\\s+\\(copy(?: (\\d+))?\\)$`));
+          return m ? (m[1] ? parseInt(m[1], 10) : 0) : -1;
+        })
+        .filter((n) => n >= 0);
+      const nextNum = existing.length === 0 ? -1 : Math.max(...existing) + 1;
+      const suffix = nextNum === -1 ? '(copy)' : `(copy ${nextNum})`;
+      const copy: Project = {
+        ...project,
+        id: crypto.randomUUID(),
+        name: `${prefix} ${suffix}`,
+        share_password: null,
+      };
+      await saveProject(copy);
+    },
+    [saveProject, state.vault?.projects],
+  );
+
   const selectProject = useCallback((id: string | null) => {
     dispatch({ type: 'SELECT_PROJECT', id });
   }, []);
@@ -286,6 +311,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       resetVault,
       saveProject,
       deleteProject,
+      duplicateProject,
       selectProject,
       setView,
       runDiff,
@@ -301,6 +327,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       resetVault,
       saveProject,
       deleteProject,
+      duplicateProject,
       selectProject,
       setView,
       runDiff,

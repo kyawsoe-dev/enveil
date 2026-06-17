@@ -8,6 +8,7 @@ export interface Project {
   name: string;
   description: string;
   env_vars: Record<string, string>;
+  share_password?: string | null;
 }
 
 export interface DiffResult {
