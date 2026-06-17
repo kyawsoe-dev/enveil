@@ -75,7 +75,8 @@ impl Mdnssd {
                 match event {
                     ServiceEvent::ServiceResolved(info) => {
                         let device_name = info.get_fullname().split('.').next().unwrap_or("unknown").to_string();
-                        if device_name == own_name {
+                        // Skip own service — macOS mDNSResponder may append " (2)" etc.
+                        if device_name == own_name || device_name.starts_with(&format!("{} (", own_name)) {
                             eprintln!("[enveil] Skipping own service: {}", device_name);
                             continue;
                         }

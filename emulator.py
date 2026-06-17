@@ -5,7 +5,7 @@ Simulates the full ENVEIL peer behavior: vault lock/unlock state,
 mDNS registration, TCP server with all protocol messages.
 
 Usage:
-    python3 test_peer.py --name "Test-Device"
+    python3 emulator.py --name "Test-Device"
 
 Commands (type in terminal):
     unlock <password>   Unlock vault (default password: test123)
