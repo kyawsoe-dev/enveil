@@ -30,8 +30,18 @@ impl SyncAppState {
 use std::process::Command;
 
 fn hostname() -> String {
+    // macOS: use the user-friendly computer name (set in System Settings > About)
+    // This is always unique per device on a network.
+    if let Ok(out) = Command::new("/usr/sbin/scutil").arg("--get").arg("ComputerName").output() {
+        if let Ok(name) = String::from_utf8(out.stdout) {
+            let name = name.trim().to_string();
+            if !name.is_empty() {
+                return name;
+            }
+        }
+    }
     if let Ok(name) = std::env::var("HOSTNAME") {
-        let name = name.trim().trim_end_matches(".local").to_string();
+        let name = name.trim().to_string();
         if !name.is_empty() {
             return name;
         }
@@ -45,7 +55,7 @@ fn hostname() -> String {
     for cmd in &["/bin/hostname", "hostname"] {
         if let Ok(out) = Command::new(cmd).output() {
             if let Ok(name) = String::from_utf8(out.stdout) {
-                let name = name.trim().trim_end_matches(".local").to_string();
+                let name = name.trim().to_string();
                 if !name.is_empty() {
                     return name;
                 }
@@ -53,8 +63,7 @@ fn hostname() -> String {
         }
     }
     // Generate a unique fallback so devices never collide
-    let fallback = format!("ENVEIL-{}", std::process::id());
-    fallback
+    format!("ENVEIL-{}", std::process::id())
 }
 
 #[tauri::command]
