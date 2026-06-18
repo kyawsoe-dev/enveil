@@ -175,19 +175,19 @@ export default function Sidebar({
           icon={<LayoutDashboard className="h-4 w-4" />}
           label="Dashboard"
           active={state.activeView === "dashboard"}
-          onClick={() => setView("dashboard")}
+          onClick={() => { selectProject(null); setView("dashboard"); }}
         />
         <NavButton
           icon={<GitCompare className="h-4 w-4" />}
           label="Compare"
           active={state.activeView === "diff"}
-          onClick={() => setView("diff")}
+          onClick={() => { selectProject(null); setView("diff"); }}
         />
         <NavButton
           icon={<Terminal className="h-4 w-4" />}
           label="Terminal"
           active={state.activeView === "terminal"}
-          onClick={() => setView("terminal")}
+          onClick={() => { selectProject(null); setView("terminal"); }}
         />
         <NavButton
           icon={
@@ -203,7 +203,7 @@ export default function Sidebar({
           }
           label="LAN Sync"
           active={state.activeView === "lan"}
-          onClick={() => setView("lan")}
+          onClick={() => { selectProject(null); setView("lan"); }}
         />
       </nav>
 
