@@ -95,7 +95,7 @@ flowchart TD
     subgraph Frontend["Frontend (Next.js 14)"]
         S[Sidebar]
         DV[Dashboard / DiffView / TerminalRunner]
-        VP[VaultProvider<br/>(React Context)]
+        VP["VaultProvider<br/>(React Context)"]
         S --> VP
         DV --> VP
     end
