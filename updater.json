@@ -1,0 +1,11 @@
+{
+  "version": "0.1.1",
+  "notes": "See https://github.com/kyawsoe-dev/enveil/releases/tag/v0.1.1",
+  "pub_date": "2026-06-18T08:23:01Z",
+  "platforms": {
+    "darwin-x86_64": {"signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUcHYvaFdMWmJ5b3ZPaHJEZlBVSUJXS0g5SEkvZ3VuUWNmQmkxNFFMdlRmK2w2eitoY2M4SXhVU2xJYU4xYW0vRldxN1RpOEcwanlYclNEbXBOdzBlUC81dmtJSlIrSFFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxNzcwOTgxCWZpbGU6RU5WRUlMXzAuMS4xX3g2NC5kbWcKelg0SDZ5cXdINTEvdWJJN1lYWi85TnZwUzR3dnB1Y3BjcktRNUZUc0JLZ0UxbENUMktvSWFXQm9SVncreXZTR095VnlPUGYrL3B1bGJxdFh2eFVuQ3c9PQo=", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.1/ENVEIL_0.1.1_x64.dmg"},
+    "darwin-aarch64": {"signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUcHYvaFdMWmJ5b3VHaExob3ZxVUVCNExEdWUybXk1TU41dDZacWNDZy9XVGUvVytDa2RKUlY2bWtNeXZsVkd2V005c2Z3WEJYVnJhc1BaQUJndGc1c0Z3VkFnOUl2OVFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxNzcwOTgxCWZpbGU6RU5WRUlMXzAuMS4xX2FhcmNoNjQuZG1nCmVSanV1U2FONkRmdG1oSXNFNExHYy83TG9CMHJoS0hzK0xwbnRJV0ZRcCs3S2k0Y3JSeVphaklUVjYxOFVuWWRBQ2xxNzc1ck80M0UyZ0lZQXBpT0NnPT0K", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.1/ENVEIL_0.1.1_aarch64.dmg"},
+    "windows-x86_64": {"signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUcHYvaFdMWmJ5b3NDWEl4blBuSlBoYnBoYVhhQjRZT1dTK3hMUkoxb0c2c005NDFBYlNTVTVpVnBsQThjVXNEUHRtenEzK2lEUW53OXUwWTMrQkxRSFhBVlpQZ1A5andrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxNzcwOTgxCWZpbGU6RU5WRUlMXzAuMS4xX3g2NF9lbi1VUy5tc2kKVzV0MXBuOWlRSTNZRUI5ZG0wWFVEWFJFVEZYclZIZjg0ZjBvYTRvd2ZaN2NUS1BkS1NzZDRYd2pkN2kvUktNdXFXYVozN3JWNjBheDJaeVBPbC9lQnc9PQo=", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.1/ENVEIL_0.1.1_x64_en-US.msi"},
+    "linux-x86_64": {"signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUcHYvaFdMWmJ5b3VPM2RCazltRDZMSFplUW12QnZSSjFpNTF6MGx1QmlKYjJCblJPWFh4dXJiZGdmV2FxOURYZmlJQ0M4S2xxK3p5MENrNFdFVE1QKzZmOXpRRHpUYVFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxNzcwOTgxCWZpbGU6ZW52ZWlsXzAuMS4xX2FtZDY0LmRlYgpNNGtNNXc2M3NubzdJeFVEQmVJWUN5aTRmM0trWjhUU1dhRXBMWWJlcmkydHhxem5UNWFHUXFRVkg3dEVtZTZMSDFuL09wd1FiM0FyOHZZZVpIeVdEdz09Cg==", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.1/enveil_0.1.1_amd64.deb"}
+  }
+}
