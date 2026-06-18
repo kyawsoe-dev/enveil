@@ -57,6 +57,39 @@ This removes the quarantine attribute. Then open the app normally.
 
 ## Architecture
 
+```
+┌──────────────────────────────────┐
+│         Frontend (Next.js)       │
+│  ┌─────────┐ ┌────────────────┐  │
+│  │ Sidebar │ │ Dashboard /    │  │
+│  │ (nav)   │ │ DiffView /     │  │
+│  │         │ │ TerminalRunner │  │
+│  └─────────┘ └────────────────┘  │
+│  ┌────────────────────────────┐  │
+│  │   VaultProvider (context)  │  │
+│  └────────────────────────────┘  │
+└──────────────┬───────────────────┘
+               │ IPC (tauri::invoke)
+┌──────────────▼───────────────────┐
+│         Rust Core (Tauri)        │
+│  ┌────────────────────────────┐  │
+│  │  17 tauri::commands          │  │
+│  └──────────┬─────────────────┘  │
+│  ┌──────────▼─────────────────┐  │
+│  │  Vault in memory (plain)   │  │
+│  │  ┌──────────────────────┐  │  │
+│  │  │ Argon2id → Key       │  │  │
+│  │  │ ChaCha20Poly1305     │  │  │
+│  │  └──────────────────────┘  │  │
+│  └──────────┬─────────────────┘  │
+│  ┌──────────▼─────────────────┐  │
+│  │  vault.bin (disk, enc.)    │  │
+│  └────────────────────────────┘  │
+└──────────────────────────────────┘
+```
+
+## Flow Chart
+
 ```mermaid
 flowchart TD
     subgraph Frontend["Frontend (Next.js 14)"]
