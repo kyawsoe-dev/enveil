@@ -57,35 +57,43 @@ This removes the quarantine attribute. Then open the app normally.
 
 ## Architecture
 
-```
-┌──────────────────────────────────┐
-│         Frontend (Next.js)       │
-│  ┌─────────┐ ┌────────────────┐  │
-│  │ Sidebar │ │ Dashboard /    │  │
-│  │ (nav)   │ │ DiffView /     │  │
-│  │         │ │ TerminalRunner │  │
-│  └─────────┘ └────────────────┘  │
-│  ┌────────────────────────────┐  │
-│  │   VaultProvider (context)  │  │
-│  └────────────────────────────┘  │
-└──────────────┬───────────────────┘
-               │ IPC (tauri::invoke)
-┌──────────────▼───────────────────┐
-│         Rust Core (Tauri)        │
-│  ┌────────────────────────────┐  │
-│  │  17 tauri::commands          │  │
-│  └──────────┬─────────────────┘  │
-│  ┌──────────▼─────────────────┐  │
-│  │  Vault in memory (plain)   │  │
-│  │  ┌──────────────────────┐  │  │
-│  │  │ Argon2id → Key       │  │  │
-│  │  │ ChaCha20Poly1305     │  │  │
-│  │  └──────────────────────┘  │  │
-│  └──────────┬─────────────────┘  │
-│  ┌──────────▼─────────────────┐  │
-│  │  vault.bin (disk, enc.)    │  │
-│  └────────────────────────────┘  │
-└──────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Frontend["Frontend (Next.js 14)"]
+        S[Sidebar]
+        DV[Dashboard / DiffView / TerminalRunner]
+        VP[VaultProvider<br/>(React Context)]
+        S --> VP
+        DV --> VP
+    end
+
+    subgraph IPC["IPC Layer"]
+        INV[tauri::invoke]
+    end
+
+    subgraph Rust["Rust Core (Tauri v1)"]
+        CMD[17 tauri::commands]
+        VAULT[Vault in Memory<br/><i>plaintext</i>]
+        CRYPTO[Argon2id → ChaCha20Poly1305]
+        CMD --> VAULT
+        VAULT <--> CRYPTO
+    end
+
+    subgraph Storage["Disk"]
+        FILE[vault.bin<br/><i>encrypted</i>]
+    end
+
+    subgraph Network["LAN Sync"]
+        MDNS[mDNS Discovery]
+        TCP[TCP Transport<br/><i>encrypted</i>]
+        MDNS <--> TCP
+    end
+
+    VP --> IPC
+    IPC --> CMD
+    CRYPTO <--> FILE
+    VAULT <--> TCP
+    TCP <--> |same network| PEER[Peer Devices]
 ```
 
 ## Project Structure
