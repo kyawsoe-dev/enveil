@@ -2,6 +2,10 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
+
+const MAX_MESSAGE_SIZE: usize = 10 * 1024 * 1024; // 10 MiB
+const TCP_TIMEOUT: Duration = Duration::from_secs(30);
 
 use super::types::{PeerInfo, ProjectSummary, SyncMessage};
 use crate::crypto::encryption::{decrypt_payload, encrypt_payload};
@@ -67,6 +71,13 @@ fn read_message(stream: &mut TcpStream) -> Result<SyncMessage, String> {
         .map_err(|e| format!("Failed to read header: {}", e))?;
     let len = u32::from_be_bytes(header) as usize;
 
+    if len > MAX_MESSAGE_SIZE {
+        return Err(format!(
+            "Message too large: {} bytes (max {})",
+            len, MAX_MESSAGE_SIZE
+        ));
+    }
+
     let mut buf = vec![0u8; len];
     stream
         .read_exact(&mut buf)
@@ -76,6 +87,8 @@ fn read_message(stream: &mut TcpStream) -> Result<SyncMessage, String> {
 }
 
 fn handle_client(mut stream: TcpStream, vault: Arc<Mutex<Option<Vault>>>) {
+    let _ = stream.set_read_timeout(Some(TCP_TIMEOUT));
+    let _ = stream.set_write_timeout(Some(TCP_TIMEOUT));
     loop {
         let msg = match read_message(&mut stream) {
             Ok(msg) => msg,
@@ -157,6 +170,8 @@ pub fn request_peer_projects(peer: &PeerInfo) -> Result<Vec<ProjectSummary>, Str
     eprintln!("[enveil] request_peer_projects connecting to {}", addr);
     let mut stream = TcpStream::connect(&addr)
         .map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
+    let _ = stream.set_read_timeout(Some(TCP_TIMEOUT));
+    let _ = stream.set_write_timeout(Some(TCP_TIMEOUT));
 
     let hello = SyncMessage::Hello {
         device_name: "ENVEIL".to_string(),
@@ -182,6 +197,8 @@ pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Res
     eprintln!("[enveil] request_project connecting to {} (project={})", addr, project_id);
     let mut stream = TcpStream::connect(&addr)
         .map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
+    let _ = stream.set_read_timeout(Some(TCP_TIMEOUT));
+    let _ = stream.set_write_timeout(Some(TCP_TIMEOUT));
 
     let hello = SyncMessage::Hello {
         device_name: "ENVEIL".to_string(),
