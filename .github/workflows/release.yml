@@ -208,22 +208,22 @@ jobs:
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
 
-          # Sign each platform artifact
+          # Sign each platform artifact and derive URL from actual filename
           sign_and_url() {
             local file="$1"
-            local url="$2"
             if [ -f "$file" ]; then
+              local filename=$(basename "$file")
               sig=$(npx tauri signer sign --private-key /tmp/tauri-key.pem --password "$TAURI_KEY_PASSWORD" "$file" 2>/dev/null)
-              echo "{\"signature\": \"$sig\", \"url\": \"$url\"}"
+              echo "{\"signature\": \"$sig\", \"url\": \"https://github.com/${{ github.repository }}/releases/download/$TAG/$filename\"}"
             else
               echo "null"
             fi
           }
 
-          DMG_X64=$(sign_and_url "$(find artifacts -name '*x86_64.dmg' | head -1)" "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_x86_64.dmg")
-          DMG_AARCH64=$(sign_and_url "$(find artifacts -name '*aarch64.dmg' | head -1)" "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_aarch64.dmg")
-          MSI=$(sign_and_url "$(find artifacts -name '*.msi' | head -1)" "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_x64.msi")
-          DEB=$(sign_and_url "$(find artifacts -name '*.deb' | head -1)" "https://github.com/${{ github.repository }}/releases/download/$TAG/enveil_amd64.deb")
+          DMG_X64=$(sign_and_url "$(find artifacts -name '*x64*.dmg' ! -name '*aarch64*' | head -1)")
+          DMG_AARCH64=$(sign_and_url "$(find artifacts -name '*aarch64*.dmg' | head -1)")
+          MSI=$(sign_and_url "$(find artifacts -name '*.msi' | head -1)")
+          DEB=$(sign_and_url "$(find artifacts -name '*.deb' | head -1)")
 
           cat > artifacts/updater.json <<EOF
           {
