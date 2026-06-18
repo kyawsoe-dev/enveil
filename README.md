@@ -33,8 +33,8 @@ This removes the quarantine attribute. Then open the app normally.
 | Dashboard | Env Table | Diff View | Terminal Runner |
 |---|---|---|---|
 | ![](screenshots/dashboard.png) | ![](screenshots/env-table.png) | ![](screenshots/diff-view.png) | ![](screenshots/terminal-runner.png) |
-| **LAN Sync** | **LAN Download** | **Settings** | **Search** |
-| ![](screenshots/lan-sync.png) | ![](screenshots/lan-sync-download.png) | ![](screenshots/settings.png) | ![](screenshots/search.png) |
+| **LAN Sync** | **LAN Download** | **Settings** | **Usage Guide** |
+| ![](screenshots/lan-sync.png) | ![](screenshots/lan-sync-download.png) | ![](screenshots/settings.png) | ![](screenshots/usage-guide.png) |
 
 ## Features
 
