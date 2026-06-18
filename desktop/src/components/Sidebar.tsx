@@ -295,9 +295,9 @@ export default function Sidebar({
           href="https://github.com/kyawsoe-dev/enveil"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium h-8 px-3 text-xs w-full gap-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         >
-          <Github className="h-3.5 w-3.5" />
+          <Github className="h-4 w-4" />
           GitHub
         </a>
         <SettingsDialog />
