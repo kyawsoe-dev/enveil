@@ -19,11 +19,11 @@ A desktop application for securely managing environment variables and secrets ac
 Grab the latest installer for your platform from the [releases page](https://github.com/kyawsoe-dev/enveil/releases/latest).
 
 | Platform | File |
-|---|---|
-| macOS (Intel) | `enveil_x86_64.dmg` |
-| macOS (Apple Silicon) | `enveil_aarch64.dmg` |
-| Windows | `enveil_x64.msi` or `enveil_x64.exe` |
-| Linux | `enveil_amd64.deb` or `enveil_x86_64.AppImage` |
+|---|---|---|
+| macOS (Intel) | `ENVEIL_<version>_x86_64.dmg` |
+| macOS (Apple Silicon) | `ENVEIL_<version>_aarch64.dmg` |
+| Windows | `ENVEIL_<version>_x64.msi` or `ENVEIL_<version>_x64.exe` |
+| Linux | `enveil_<version>_amd64.deb` or `enveil_<version>_x86_64.AppImage` |
 
 ### macOS Troubleshooting
 
@@ -168,7 +168,7 @@ This removes the quarantine attribute. Then open the app normally.
 | **Storage** | Encrypted `vault.bin` in OS config directory (`~/.config/env-vault/`) |
 | **Memory** | Plaintext vault held only in process memory after unlock |
 | **Process Isolation** | Injected env vars scoped to child process — never written to global environment |
-| **No `unwrap()`** | All errors propagate via `VaultError` |
+| **Error handling** | All Tauri commands return `Result<T, String>`; internal errors propagate via `VaultError` |
 
 ## IPC Commands
 
@@ -184,6 +184,7 @@ All commands return `Result<T, String>` for frontend consumption.
 | `run_command` | `command: String, project_id: String` | `String` (stdout + stderr) |
 | `vault_exists` | — | `bool` |
 | `change_password` | `old_password: String, new_password: String` | `()` |
+| `get_vault` | — | `Option<Vault>` |
 | `reset_vault` | — | `()` |
 | `start_lan_sync` | — | `()` |
 | `stop_lan_sync` | — | `()` |
