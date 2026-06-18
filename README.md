@@ -16,14 +16,7 @@ A desktop application for securely managing environment variables and secrets ac
 
 ## Download
 
-Grab the latest installer for your platform from the [releases page](https://github.com/kyawsoe-dev/enveil/releases/latest).
-
-| Platform | File |
-|---|---|---|
-| macOS (Intel) | `ENVEIL_<version>_x86_64.dmg` |
-| macOS (Apple Silicon) | `ENVEIL_<version>_aarch64.dmg` |
-| Windows | `ENVEIL_<version>_x64.msi` or `ENVEIL_<version>_x64.exe` |
-| Linux | `enveil_<version>_amd64.deb` or `enveil_<version>_x86_64.AppImage` |
+Grab the latest installer for your platform from the [releases page](https://github.com/kyawsoe-dev/enveil/releases/latest) (`.dmg` for macOS, `.msi` for Windows, `.deb` for Linux).
 
 ### macOS Troubleshooting
 
@@ -40,6 +33,8 @@ This removes the quarantine attribute. Then open the app normally.
 | Dashboard | Env Table | Diff View | Terminal Runner |
 |---|---|---|---|
 | ![](screenshots/dashboard.png) | ![](screenshots/env-table.png) | ![](screenshots/diff-view.png) | ![](screenshots/terminal-runner.png) |
+| **LAN Sync** | **LAN Download** | **Settings** | **Search** |
+| ![](screenshots/lan-sync.png) | ![](screenshots/lan-sync-download.png) | ![](screenshots/settings.png) | ![](screenshots/search.png) |
 
 ## Features
 
