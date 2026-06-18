@@ -295,21 +295,38 @@ export default function Sidebar({
           href="https://github.com/kyawsoe-dev/enveil"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium h-8 px-3 text-xs w-full gap-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="inline-flex items-center justify-start whitespace-nowrap rounded-md text-sm font-medium h-8 px-3 text-xs w-full gap-2 text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
         >
           <Github className="h-4 w-4" />
           GitHub
         </a>
         <SettingsDialog />
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={lock}
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-        >
-          <LogOut className="h-4 w-4" />
-          Lock Vault
-        </Button>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+              Lock Vault
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Lock Vault</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to lock the vault? You will need to enter your master password to unlock it again.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2 pt-2">
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">Cancel</Button>
+              </DialogTrigger>
+              <Button variant="default" size="sm" onClick={lock}>Lock</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
         </>
       ) : (
