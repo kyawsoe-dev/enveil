@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Wifi,
@@ -33,6 +33,8 @@ export default function LanSyncView() {
   const [syncErr, setSyncErr] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [peerErrors, setPeerErrors] = useState<Record<string, string>>({});
+  const peerErrorsRef = useRef(peerErrors);
+  peerErrorsRef.current = peerErrors;
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [peerProjects, setPeerProjects] = useState<Record<string, ProjectSummary[]>>({});
@@ -69,7 +71,9 @@ export default function LanSyncView() {
     init();
     const interval = setInterval(async () => {
       await refreshStatus();
-      setRefreshTick((t) => t + 1);
+      if (Object.keys(peerErrorsRef.current).length > 0) {
+        setRefreshTick((t) => t + 1);
+      }
     }, 3000);
     return () => clearInterval(interval);
   }, [refreshStatus]);
