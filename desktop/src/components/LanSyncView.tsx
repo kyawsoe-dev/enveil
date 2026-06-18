@@ -41,6 +41,7 @@ export default function LanSyncView() {
   const [requestingProject, setRequestingProject] = useState<{ peer: PeerInfo; id: string; name: string } | null>(null);
   const [sharePassword, setSharePassword] = useState('');
   const [showSharePwd, setShowSharePwd] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const status = syncState ?? { active: false, peers: [], my_device_name: '', port: 0 };
 
@@ -85,11 +86,10 @@ export default function LanSyncView() {
   const refreshPeers = async () => {
     setRefreshingPeers(true);
     setPeerProjects({});
-    if (status.active) {
-      await lan.stopLanSync();
-      await lan.startLanSync();
-    }
+    setLoadedPeers(new Set());
+    setPeerErrors({});
     await refreshStatus();
+    setRefreshTick((t) => t + 1);
     setRefreshingPeers(false);
   };
 
@@ -114,7 +114,7 @@ export default function LanSyncView() {
         setPeerErrors((prev) => ({ ...prev, [name]: String(err) }));
       });
     });
-  }, [status.active, peersKey]);
+  }, [status.active, peersKey, refreshTick]);
 
   const confirmSync = async () => {
     if (!requestingProject || !state.password) return;
