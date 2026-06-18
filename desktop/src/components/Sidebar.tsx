@@ -18,7 +18,6 @@ import {
   Wifi,
   Share2,
   Copy,
-  Search,
 } from "lucide-react";
 import UsageGuide from "./UsageGuide";
 import EditProjectDialog from "./EditProjectDialog";
@@ -54,11 +53,9 @@ export default function Sidebar({
   const selected = state.selectedProjectId;
   const projects = state.vault?.projects ?? [];
   const [syncActive, setSyncActive] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [projectTab, setProjectTab] = useState<"all" | "shared">("all");
   const filteredProjects = projects.filter((p) => {
     if (projectTab === "shared" && !p.share_password) return false;
-    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -221,15 +218,6 @@ export default function Sidebar({
             {projects.length}
           </span>
         </div>
-        <div className="relative px-2 pb-2">
-          <Search className="absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search projects..."
-            className="w-full rounded-md border border-border bg-transparent py-1 pl-6 pr-2 text-xs text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary transition-colors"
-          />
-        </div>
         <div className="flex gap-1 px-2 pb-2">
           <button
             onClick={() => setProjectTab("all")}
@@ -294,7 +282,7 @@ export default function Sidebar({
         ))}
         {filteredProjects.length === 0 && (
           <p className="px-2 py-3 text-xs text-muted-foreground">
-            {searchQuery ? "No matching projects" : projectTab === "shared" ? "No shared projects" : "No projects yet"}
+            {projectTab === "shared" ? "No shared projects" : "No projects yet"}
           </p>
         )}
         <AddProjectDialog onSave={saveProject} />
