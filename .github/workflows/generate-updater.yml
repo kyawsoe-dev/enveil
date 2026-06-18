@@ -43,6 +43,10 @@ jobs:
           TAG="${{ inputs.tag }}"
           VERSION="${TAG#v}"
 
+          # Debug: show tauri version
+          echo "Tauri version: $(tauri --version 2>&1)"
+          echo "Private key file size: $(wc -c < /tmp/tauri-key.pem)"
+
           sign_file() {
             local file="$1"
             if [ ! -f "$file" ]; then
@@ -50,10 +54,13 @@ jobs:
               return
             fi
             local filename=$(basename "$file")
-            tauri signer sign --private-key "$(cat /tmp/tauri-key.pem)" --password "$TAURI_KEY_PASSWORD" "$file" > /dev/null 2>&1
+            echo "Signing: $filename"
+            tauri signer sign --private-key "$(cat /tmp/tauri-key.pem)" --password "$TAURI_KEY_PASSWORD" "$file" 2>&1
+            local exit_code=$?
+            echo "Signer exit code: $exit_code"
             local sig=$(cat "$file.sig" 2>/dev/null)
             if [ -z "$sig" ]; then
-              echo "::error::Failed to sign $filename"
+              echo "::error::Failed to sign $filename (no .sig file)"
               echo "null"
               return
             fi
