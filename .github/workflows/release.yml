@@ -213,7 +213,7 @@ jobs:
             local file="$1"
             if [ -f "$file" ]; then
               local filename=$(basename "$file")
-              sig=$(npx tauri signer sign --private-key /tmp/tauri-key.pem --password "$TAURI_KEY_PASSWORD" "$file" 2>/dev/null)
+              sig=$(npx tauri signer sign --private-key-path /tmp/tauri-key.pem --password "$TAURI_KEY_PASSWORD" "$file" 2>/dev/null)
               echo "{\"signature\": \"$sig\", \"url\": \"https://github.com/${{ github.repository }}/releases/download/$TAG/$filename\"}"
             else
               echo "null"
@@ -228,7 +228,7 @@ jobs:
           cat > artifacts/updater.json <<EOF
           {
             "version": "$VERSION",
-            "notes": "See release notes",
+            "notes": "See https://github.com/${{ github.repository }}/releases/tag/$TAG",
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
               "darwin-x86_64": $DMG_X64,
