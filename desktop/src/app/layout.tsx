@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Bitcount+Single:wght@100..900&family=Noto+Sans+Myanmar:wght@100..900&family=Tektur:wght@400..900&display=swap');`}</style>
+        
       </head>
       <body className="antialiased">
         <ThemeProvider>{children}</ThemeProvider>
