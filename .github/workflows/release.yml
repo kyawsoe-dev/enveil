@@ -213,7 +213,7 @@ jobs:
             local file="$1"
             local url="$2"
             if [ -f "$file" ]; then
-              sig=$(npx tauri signer sign --private-key /tmp/tauri-key.pem "$file" 2>/dev/null)
+              sig=$(npx tauri signer sign --private-key /tmp/tauri-key.pem --password "$TAURI_KEY_PASSWORD" "$file" 2>/dev/null)
               echo "{\"signature\": \"$sig\", \"url\": \"$url\"}"
             else
               echo "null"
