@@ -50,7 +50,8 @@ jobs:
               return
             fi
             local filename=$(basename "$file")
-            local sig=$(npx tauri signer sign --private-key-path /tmp/tauri-key.pem --password "$TAURI_KEY_PASSWORD" "$file" 2>&1)
+            npx tauri signer sign --private-key-path /tmp/tauri-key.pem --password "$TAURI_KEY_PASSWORD" "$file" > /dev/null 2>&1
+            local sig=$(cat "$file.sig" 2>/dev/null)
             if [ -z "$sig" ]; then
               echo "::error::Failed to sign $filename"
               echo "null"
