@@ -55,11 +55,18 @@ export default function LanSyncView() {
   }, []);
 
   useEffect(() => {
-    refreshStatus();
+    setPeerProjects({});
+    setLoadedPeers(new Set());
+    setPeerErrors({});
     const saved = localStorage.getItem('enveil_device_name');
     if (saved) {
       lan.setDeviceName(saved).catch(() => {});
     }
+    const init = async () => {
+      await refreshStatus();
+      setRefreshTick((t) => t + 1);
+    };
+    init();
     const interval = setInterval(refreshStatus, 5000);
     return () => clearInterval(interval);
   }, [refreshStatus]);
