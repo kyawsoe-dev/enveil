@@ -215,6 +215,10 @@ jobs:
               local filename=$(basename "$file")
               tauri signer sign --private-key "$(cat /tmp/tauri-key.pem)" --password "$TAURI_KEY_PASSWORD" "$file" > /dev/null 2>&1
               local sig=$(cat "$file.sig" 2>/dev/null)
+              if [ -z "$sig" ]; then
+                echo "null"
+                return
+              fi
               echo "{\"signature\": \"$sig\", \"url\": \"https://github.com/${{ github.repository }}/releases/download/$TAG/$filename\"}"
             else
               echo "null"
