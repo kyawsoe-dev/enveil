@@ -70,7 +70,7 @@ export default function LanSyncView() {
     const interval = setInterval(async () => {
       await refreshStatus();
       setRefreshTick((t) => t + 1);
-    }, 5000);
+    }, 3000);
     return () => clearInterval(interval);
   }, [refreshStatus]);
 
