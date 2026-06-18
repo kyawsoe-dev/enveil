@@ -204,7 +204,7 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
-          python3 -c "import os; open('/tmp/tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
+          echo "$TAURI_PRIVATE_KEY" > /tmp/tauri-key.pem
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
 

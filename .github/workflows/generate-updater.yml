@@ -38,7 +38,7 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
-          python3 -c "import os; open('/tmp/tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
+          echo "$TAURI_PRIVATE_KEY" > /tmp/tauri-key.pem
 
           TAG="${{ inputs.tag }}"
           VERSION="${TAG#v}"
@@ -50,7 +50,7 @@ jobs:
               return
             fi
             local filename=$(basename "$file")
-            local sig=$(npx tauri signer sign --private-key /tmp/tauri-key.pem --password "$TAURI_KEY_PASSWORD" "$file" 2>/dev/null)
+            local sig=$(npx tauri signer sign --private-key /tmp/tauri-key.pem --password "$TAURI_KEY_PASSWORD" "$file" 2>&1)
             if [ -z "$sig" ]; then
               echo "::error::Failed to sign $filename"
               echo "null"
