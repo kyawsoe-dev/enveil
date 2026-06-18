@@ -190,7 +190,7 @@ function EnvVarRow({
   }, [revealAll]);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(value);
+    await navigator.clipboard.writeText(`${name}=${value}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   };
