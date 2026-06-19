@@ -55,7 +55,9 @@ function AppShell() {
           {state.activeView === 'project' && <ProjectView />}
           {state.activeView === 'diff' && <DiffView />}
           {state.activeView === 'terminal' && <TerminalRunner />}
-          {state.activeView === 'lan' && <LanSyncView />}
+          <div className={state.activeView === 'lan' ? 'flex flex-1 overflow-hidden' : 'hidden'}>
+            <LanSyncView />
+          </div>
         </div>
       </main>
     </div>

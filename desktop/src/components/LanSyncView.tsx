@@ -57,9 +57,6 @@ export default function LanSyncView() {
   }, []);
 
   useEffect(() => {
-    setPeerProjects({});
-    setLoadedPeers(new Set());
-    setPeerErrors({});
     const saved = localStorage.getItem('enveil_device_name');
     if (saved) {
       lan.setDeviceName(saved).catch(() => {});
