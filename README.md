@@ -129,6 +129,52 @@ flowchart TD
     TCP <--> |same network| PEER[Peer Devices]
 ```
 
+## LAN Sync Flow
+
+```mermaid
+flowchart TD
+    START([User clicks Start]) --> IPC_start[invoke: start_lan_sync]
+    IPC_start --> MDNS_REG[mDNS: register _enveil._tcp service]
+    IPC_start --> MDNS_BROWSE[mDNS: browse for _enveil._tcp peers]
+    MDNS_REG --> POLL{{get_sync_status every 3s}}
+    MDNS_BROWSE --> POLL
+    POLL --> DECIDE{Peers found?}
+
+    DECIDE -->|No| POLL
+
+    DECIDE -->|Yes| PEER_LIST[Frontend shows peer cards<br/>with device name + IP]
+    PEER_LIST --> USER_CLICK[User clicks Download<br/>on a peer project]
+    USER_CLICK --> PWD_DIALOG[Share password dialog opens]
+    PWD_DIALOG --> IPC_SYNC[invoke: sync_project_from_peer]
+
+    subgraph Rust["Rust Backend (Receiver)"]
+        IPC_SYNC --> TCP_CONNECT[TCP connect to peer<br/>ip:port from PeerInfo]
+        TCP_CONNECT --> HANDSHAKE["Send Hello
+        wait for Challenge"]
+        HANDSHAKE --> CHALLENGE_RESP[Send challenge response<br/>encrypted with vault master password]
+        CHALLENGE_RESP --> RESP{Peer response}
+        RESP -->|success| REQ_PROJ[Request project by ID]
+        RESP -->|error| ERR[Return error to frontend]
+        REQ_PROJ --> RECV_DATA[Receive encrypted project data]
+        RECV_DATA --> DECRYPT[Decrypt with ChaCha20Poly1305]
+        DECRYPT --> SAVE[Save project to vault]
+        SAVE --> OK[Return success]
+    end
+
+    subgraph Peer["Peer Device (Sender)"]
+        TCP_LISTEN[TCP listener on port] --> ACCEPT[Accept connection]
+        ACCEPT --> SEND_CHALLENGE["Send Challenge
+        (random bytes)"]
+        SEND_CHALLENGE --> VERIFY[Verify decrypted challenge<br/>with project share password]
+        VERIFY -->|OK| ENCRYPT[Encrypt project data<br/>with ChaCha20Poly1305]
+        VERIFY -->|Fail| SEND_ERR[Send error response]
+        ENCRYPT --> SEND_DATA[Send encrypted project]
+    end
+
+    OK --> REFRESH[Refresh vault UI]
+    ERR --> RETRY[Show error on peer card<br/>auto-retry every 3s]
+```
+
 ## Project Structure
 
 ```
