@@ -63,7 +63,7 @@ export default function DeleteProjectDialog({
             Are you sure you want to delete this project?
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 pt-2">
+        <div className="space-y-4 pt-2" onKeyDown={(e) => { if (e.key === 'Enter' && !isLoading) handleDelete(); }}>
           <div className="flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive-foreground dark:text-destructive-foreground">
             <AlertTriangle className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
             <div className="space-y-1">

@@ -215,7 +215,7 @@ export default function Sidebar({
             Projects
           </p>
           <span className="text-[11px] tabular-nums text-muted-foreground">
-            {projects.length}
+            {filteredProjects.length}
           </span>
         </div>
         <div className="flex gap-1 px-2 pb-2">
@@ -393,7 +393,7 @@ function AddProjectDialog({
             Create a new project to store environment variables.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 pt-2">
+        <div className="space-y-3 pt-2" onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) handleSave(); }}>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Project Name
@@ -404,6 +404,7 @@ function AddProjectDialog({
               placeholder="my-service"
               className="font-mono text-sm"
               autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
             />
             <p className="mt-1 text-[10px] text-muted-foreground/60">{name.length}/128</p>
           </div>
@@ -416,6 +417,7 @@ function AddProjectDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description"
               className="text-sm"
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
             />
           </div>
           <Button

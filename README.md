@@ -51,6 +51,7 @@ This removes the quarantine attribute. Then open the app normally.
 | **Change Password** | Re-encrypts entire vault with a new master password |
 | **Auto-Lock** | Lock vault after configurable inactivity timeout |
 | **Reset Vault** | Securely wipe the entire vault and all projects |
+| **Temp .env File** | Generate a secure (600 perms) temporary `.env` file in `/tmp`, symlinked into your project folder. Auto-updated on edit, auto-deleted on vault lock |
 | **LAN Sync** | Share projects with teammates on the same local network with per-project share passwords for download authorization |
 | **Dark/Light/System Theme** | Class-based theming via `next-themes` |
 | **Project Duplicate** | Duplicate existing projects to create copies with shared env vars |
@@ -73,7 +74,7 @@ This removes the quarantine attribute. Then open the app normally.
 ┌──────────────▼───────────────────┐
 │         Rust Core (Tauri)        │
 │  ┌────────────────────────────┐  │
-│  │  17 tauri::commands          │  │
+│  │  22 tauri::commands          │  │
 │  └──────────┬─────────────────┘  │
 │  ┌──────────▼─────────────────┐  │
 │  │  Vault in memory (plain)   │  │
@@ -105,7 +106,7 @@ flowchart TD
     end
 
     subgraph Rust["Rust Core (Tauri v1)"]
-        CMD[17 tauri::commands]
+        CMD[22 tauri::commands]
         VAULT[Vault in Memory<br/><i>plaintext</i>]
         CRYPTO[Argon2id → ChaCha20Poly1305]
         CMD --> VAULT
@@ -207,7 +208,7 @@ flowchart TD
 │   │   │   └── VaultProvider.tsx     React context (state + dispatch)
 │   │   ├── lib/
 │   │   │   ├── brand.ts              App name, logo paths, brand font class
-│   │   │   ├── tauri.ts              invoke wrappers (17 commands)
+│   │   │   ├── tauri.ts              invoke wrappers (22 commands)
 │   │   │   ├── types.ts              TS interfaces (Vault, Project, DiffResult…)
 │   │   │   └── utils.ts              cn() helper
 │   │   ├── global.d.ts               *.css module declaration
@@ -274,7 +275,12 @@ All commands return `Result<T, String>` for frontend consumption.
 | `get_peers` | — | `Vec<PeerInfo>` |
 | `get_peer_projects` | `peerDeviceName: String` | `Vec<ProjectSummary>` |
 | `sync_project_from_peer` | `peerDeviceName: String, projectId: String, password: String, sharePassword: String` | `Project` |
-| `set_device_name` | `name: String` | `()` |
+ | `set_device_name` | `name: String` | `()` |
+| `generate_temp_env` | `projectId: String, symlinkPath: String?` | `String` (temp file path) |
+| `regenerate_temp_env` | `projectId: String` | `()` |
+| `delete_temp_env` | `projectId: String` | `()` |
+| `cleanup_all_temp_envs` | — | `()` |
+| `get_temp_env_status` | `projectId: String` | `TempEnvStatus?` |
 
 ## Data Models
 
@@ -304,6 +310,11 @@ pub struct DiffResult {
     pub only_in_a: BTreeMap<String, String>,
     pub only_in_b: BTreeMap<String, String>,
     pub changed: BTreeMap<String, (String, String)>,
+}
+
+pub struct TempEnvStatus {
+    pub temp_path: String,
+    pub symlink_path: Option<String>,
 }
 ```
 

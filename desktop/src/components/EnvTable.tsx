@@ -324,7 +324,7 @@ function EditEnvVarDialog({
             Edit the key and value of this environment variable.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 pt-2">
+        <div className="space-y-3 pt-2" onKeyDown={(e) => { if (e.key === 'Enter' && key.trim()) handleSave(); }}>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               KEY
@@ -336,6 +336,7 @@ function EditEnvVarDialog({
               }
               className="font-mono text-sm"
               autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
             />
           </div>
           <div>
@@ -346,6 +347,7 @@ function EditEnvVarDialog({
               value={value}
               onChange={(e) => setValue(e.target.value)}
               className="font-mono text-sm"
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
             />
           </div>
           <Button
@@ -527,7 +529,7 @@ function AddEnvVarDialog({
             Add a new key-value pair to this project.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 pt-2">
+        <div className="space-y-3 pt-2" onKeyDown={(e) => { if (e.key === 'Enter' && key.trim()) handleSave(true); }}>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               KEY
@@ -540,6 +542,7 @@ function AddEnvVarDialog({
               placeholder="DATABASE_URL"
               className="font-mono text-sm"
               autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
             />
           </div>
           <div>
@@ -551,6 +554,7 @@ function AddEnvVarDialog({
               onChange={(e) => setValue(e.target.value)}
               placeholder="postgres://localhost:5432/db"
               className="font-mono text-sm"
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
             />
           </div>
           <div className="flex gap-2">

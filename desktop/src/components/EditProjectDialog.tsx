@@ -78,7 +78,7 @@ export default function EditProjectDialog({
             Update the project name and description.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 pt-2">
+        <div className="space-y-3 pt-2" onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) handleSave(); }}>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">Project Name</label>
             <Input
@@ -86,6 +86,7 @@ export default function EditProjectDialog({
               onChange={(e) => setName(e.target.value.slice(0, 128))}
               className="text-sm"
               autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
             />
             <p className="mt-1 text-[10px] text-muted-foreground/60">{name.length}/128</p>
           </div>
@@ -95,6 +96,7 @@ export default function EditProjectDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="text-sm"
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
             />
           </div>
           <Button onClick={handleSave} className="w-full gap-2" disabled={!name.trim()}>
