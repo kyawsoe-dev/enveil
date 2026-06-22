@@ -198,14 +198,16 @@ export default function ProjectView() {
         )}
       </div>
 
-      <div className="flex items-center gap-4 border-b bg-muted/30 px-6 py-2.5">
+        <div className="flex items-center gap-4 border-b bg-muted/30 px-6 py-2.5">
         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-        <span
-          className="text-xs font-medium text-muted-foreground cursor-default rounded-sm px-1 py-0.5 transition-colors hover:bg-muted"
-          title="ENVEIL writes your project's env vars to a temporary file (secure, 600 permissions) and creates a symlink in your project folder. The temp file is auto-updated when you edit vars, and deleted on vault lock."
-        >
-          Temporary .env
-        </span>
+        <div className="group relative">
+          <span className="text-xs font-medium text-muted-foreground cursor-default rounded-sm px-1 py-0.5 transition-colors hover:bg-muted">
+            Temporary .env
+          </span>
+          <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-0 z-50 mb-0.5 w-72 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+            ENVEIL writes your project's env vars to a temporary file (secure, 600 permissions) and creates a symlink in your project folder. The temp file is auto-updated when you edit vars, and deleted on vault lock.
+          </div>
+        </div>
         <div className="flex items-center gap-2 flex-1">
           {tempEnvPath ? (
             <>
@@ -219,10 +221,15 @@ export default function ProjectView() {
                   </code>
                 )}
               </div>
-              <Button variant="ghost" size="sm" className="h-6 text-xs px-2 gap-1" onClick={handleRegenerate} disabled={loadingTempEnv} title="Re-writes the temp .env file with the latest vault data. This happens automatically after each edit — only use this button if you need to force a refresh.">
-                {loadingTempEnv ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                Regenerate
-              </Button>
+              <div className="group relative">
+                <Button variant="ghost" size="sm" className="h-6 text-xs px-2 gap-1" onClick={handleRegenerate} disabled={loadingTempEnv}>
+                  {loadingTempEnv ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                  Regenerate
+                </Button>
+                <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-56 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                  Re-writes the temp .env file with the latest vault data. This happens automatically after each edit — only use this button if you need to force a refresh.
+                </div>
+              </div>
               <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-destructive hover:text-destructive gap-1" onClick={handleDeleteTempEnv}>
                 <Trash2 className="h-3 w-3" />
                 Unlink
@@ -256,10 +263,15 @@ export default function ProjectView() {
                   .env{envSuffix ? `.${envSuffix}` : ''}
                 </span>
               </div>
-              <Button variant="outline" size="sm" className="h-7 text-xs px-3 gap-1.5" onClick={() => handleGenerateTempEnv()} disabled={loadingTempEnv || Object.keys(selected?.env_vars ?? {}).length === 0}>
-                {loadingTempEnv ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
-                Generate &amp; Link
-              </Button>
+              <div className="group relative">
+                <Button variant="outline" size="sm" className="h-7 text-xs px-3 gap-1.5" onClick={() => handleGenerateTempEnv()} disabled={loadingTempEnv || Object.keys(selected?.env_vars ?? {}).length === 0}>
+                  {loadingTempEnv ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                  Generate &amp; Link
+                </Button>
+                <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-56 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                  Generates a secure temp .env file with a symlink in your chosen project folder.
+                </div>
+              </div>
             </>
           )}
         </div>

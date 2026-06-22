@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi, Copy } from 'lucide-react';
+import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi, Copy, FileText, ExternalLink, RefreshCw, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -120,6 +120,18 @@ export default function UsageGuide() {
             </h3>
             <p className="text-muted-foreground">
               Your vault is encrypted with <strong>Argon2id</strong> + <strong>ChaCha20Poly1305</strong> and stored locally. Click <strong>Lock Vault</strong> in the sidebar to lock it. Close the app to auto-lock.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <FileText className="h-3.5 w-3.5 text-primary" /> Temp .env File
+            </h3>
+            <p className="text-muted-foreground">
+              Generate a secure temporary <code className="text-xs bg-muted px-1 rounded">.env</code> file in your project folder. Click <strong>Generate &amp; Link</strong>, pick your project folder, and choose an environment suffix (<code className="text-xs bg-muted px-1 rounded">.env</code>, <code className="text-xs bg-muted px-1 rounded">.env.development</code>, etc.). A symlink is created in your project folder pointing to a secure temp file (600 permissions) in the system temp directory.
+            </p>
+            <p className="text-muted-foreground mt-2">
+              The temp file auto-updates when you edit env vars — no manual refresh needed. Use <strong>Regenerate</strong> to force a refresh, or <strong>Unlink</strong> to remove the symlink and temp file. All temp files are automatically deleted when you lock the vault.
             </p>
           </section>
 
