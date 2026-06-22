@@ -1,5 +1,12 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::fs::Permissions;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
+use serde::Serialize;
 
 use crate::error::VaultError;
 use crate::models::diff;
@@ -7,6 +14,19 @@ use crate::models::{DiffResult, Project, Vault};
 use crate::storage::{delete_vault_file, load_vault, save_vault};
 
 pub struct AppState(pub Arc<Mutex<Option<Vault>>>);
+
+pub struct TempEnvInfo {
+    pub temp_dir: PathBuf,
+    pub symlink_path: Option<PathBuf>,
+}
+
+#[derive(Serialize)]
+pub struct TempEnvStatus {
+    pub temp_path: String,
+    pub symlink_path: Option<String>,
+}
+
+pub struct TempEnvState(pub Mutex<HashMap<String, TempEnvInfo>>);
 
 #[tauri::command]
 pub fn initialize_vault(
@@ -186,4 +206,149 @@ pub fn run_command(
     }
 
     Ok(combined)
+}
+
+#[tauri::command]
+pub fn generate_temp_env(
+    vault_state: tauri::State<AppState>,
+    temp_state: tauri::State<TempEnvState>,
+    project_id: String,
+    symlink_path: Option<String>,
+) -> Result<String, String> {
+    let vault = vault_state
+        .0
+        .lock()
+        .map_err(|e| e.to_string())?;
+    let vault = vault.as_ref().ok_or("Vault is not unlocked")?;
+    let project = vault
+        .find_project(&project_id)
+        .ok_or_else(|| format!("Project '{}' not found", project_id))?;
+
+    let temp_dir = std::env::temp_dir().join(format!("enveil_{}", &project_id));
+    std::fs::create_dir_all(&temp_dir).map_err(|e| format!("Failed to create temp dir: {}", e))?;
+
+    let env_path = temp_dir.join(".env");
+    let content: String = project
+        .env_vars
+        .iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(&env_path, &content).map_err(|e| format!("Failed to write .env: {}", e))?;
+
+    #[cfg(unix)]
+    std::fs::set_permissions(&env_path, Permissions::from_mode(0o600))
+        .map_err(|e| format!("Failed to set permissions: {}", e))?;
+
+    if let Some(ref sym_path_str) = symlink_path {
+        let sym_path = std::path::Path::new(sym_path_str);
+        if sym_path.exists() {
+            std::fs::remove_file(sym_path).map_err(|e| format!("Failed to remove existing symlink target: {}", e))?;
+        }
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&env_path, sym_path)
+            .map_err(|e| format!("Failed to create symlink: {}", e))?;
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(&env_path, sym_path)
+            .map_err(|e| format!("Failed to create symlink: {}", e))?;
+    }
+
+    let mut temps = temp_state.0.lock().map_err(|e| e.to_string())?;
+    temps.insert(
+        project_id,
+        TempEnvInfo {
+            temp_dir: temp_dir.clone(),
+            symlink_path: symlink_path.map(PathBuf::from),
+        },
+    );
+
+    Ok(env_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn regenerate_temp_env(
+    vault_state: tauri::State<AppState>,
+    temp_state: tauri::State<TempEnvState>,
+    project_id: String,
+) -> Result<(), String> {
+    let vault = vault_state
+        .0
+        .lock()
+        .map_err(|e| e.to_string())?;
+    let vault = vault.as_ref().ok_or("Vault is not unlocked")?;
+    let project = vault
+        .find_project(&project_id)
+        .ok_or_else(|| format!("Project '{}' not found", project_id))?;
+
+    let temps = temp_state.0.lock().map_err(|e| e.to_string())?;
+    let info = temps
+        .get(&project_id)
+        .ok_or_else(|| format!("No temp .env for project '{}'", project_id))?;
+
+    let env_path = info.temp_dir.join(".env");
+    let content: String = project
+        .env_vars
+        .iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(&env_path, &content).map_err(|e| format!("Failed to write .env: {}", e))?;
+
+    #[cfg(unix)]
+    std::fs::set_permissions(&env_path, Permissions::from_mode(0o600))
+        .map_err(|e| format!("Failed to set permissions: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_temp_env(
+    temp_state: tauri::State<TempEnvState>,
+    project_id: String,
+) -> Result<(), String> {
+    let mut temps = temp_state.0.lock().map_err(|e| e.to_string())?;
+    if let Some(info) = temps.remove(&project_id) {
+        if let Some(ref sym_path) = info.symlink_path {
+            if sym_path.exists() {
+                std::fs::remove_file(sym_path).ok();
+            }
+        }
+        if info.temp_dir.exists() {
+            std::fs::remove_dir_all(&info.temp_dir).ok();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_temp_env_status(
+    temp_state: tauri::State<TempEnvState>,
+    project_id: String,
+) -> Result<Option<TempEnvStatus>, String> {
+    let temps = temp_state.0.lock().map_err(|e| e.to_string())?;
+    Ok(temps.get(&project_id).map(|info| TempEnvStatus {
+        temp_path: info.temp_dir.join(".env").to_string_lossy().to_string(),
+        symlink_path: info
+            .symlink_path
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string()),
+    }))
+}
+
+#[tauri::command]
+pub fn cleanup_all_temp_envs(
+    temp_state: tauri::State<TempEnvState>,
+) -> Result<(), String> {
+    let mut temps = temp_state.0.lock().map_err(|e| e.to_string())?;
+    for (_id, info) in temps.drain() {
+        if let Some(ref sym_path) = info.symlink_path {
+            if sym_path.exists() {
+                std::fs::remove_file(sym_path).ok();
+            }
+        }
+        if info.temp_dir.exists() {
+            std::fs::remove_dir_all(&info.temp_dir).ok();
+        }
+    }
+    Ok(())
 }

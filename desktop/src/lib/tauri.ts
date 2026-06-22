@@ -46,3 +46,28 @@ export async function deleteProject(password: string, projectId: string): Promis
 export async function getVault(): Promise<Vault | null> {
   return invoke<Vault | null>('get_vault');
 }
+
+export async function generateTempEnv(projectId: string, symlinkPath?: string): Promise<string> {
+  return invoke<string>('generate_temp_env', { projectId, symlinkPath: symlinkPath ?? null });
+}
+
+export async function regenerateTempEnv(projectId: string): Promise<void> {
+  return invoke<void>('regenerate_temp_env', { projectId });
+}
+
+export async function deleteTempEnv(projectId: string): Promise<void> {
+  return invoke<void>('delete_temp_env', { projectId });
+}
+
+export async function cleanupAllTempEnvs(): Promise<void> {
+  return invoke<void>('cleanup_all_temp_envs');
+}
+
+export interface TempEnvStatus {
+  temp_path: string;
+  symlink_path: string | null;
+}
+
+export async function getTempEnvStatus(projectId: string): Promise<TempEnvStatus | null> {
+  return invoke<TempEnvStatus | null>('get_temp_env_status', { projectId });
+}

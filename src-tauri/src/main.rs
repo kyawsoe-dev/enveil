@@ -8,12 +8,14 @@ mod network;
 mod storage;
 
 use commands::sync_commands::SyncAppState;
-use commands::vault_commands::AppState;
+use commands::vault_commands::{AppState, TempEnvState};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 fn main() {
     tauri::Builder::default()
         .manage(AppState(Arc::new(Mutex::new(None))))
+        .manage(TempEnvState(Mutex::new(HashMap::new())))
         .manage(SyncAppState::new())
         .invoke_handler(tauri::generate_handler![
             commands::vault_commands::initialize_vault,
@@ -26,6 +28,11 @@ fn main() {
             commands::vault_commands::delete_project,
             commands::vault_commands::reset_vault,
             commands::vault_commands::get_vault,
+            commands::vault_commands::get_temp_env_status,
+            commands::vault_commands::generate_temp_env,
+            commands::vault_commands::regenerate_temp_env,
+            commands::vault_commands::delete_temp_env,
+            commands::vault_commands::cleanup_all_temp_envs,
             commands::sync_commands::start_lan_sync,
             commands::sync_commands::stop_lan_sync,
             commands::sync_commands::get_peers,

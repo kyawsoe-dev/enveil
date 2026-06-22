@@ -122,6 +122,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const lock = useCallback(() => {
+    tauri.cleanupAllTempEnvs().catch(() => {});
     dispatch({ type: 'LOCK' });
   }, []);
 
@@ -187,7 +188,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_LOADING', isLoading: true });
     try {
       await tauri.resetVault();
-      // Stop LAN sync if running, so stale state is cleaned up
+      await tauri.cleanupAllTempEnvs();
       try { await import('@/lib/lan').then(m => m.stopLanSync()); } catch {}
     } catch (err) {
       dispatch({ type: 'SET_ERROR', error: String(err) });

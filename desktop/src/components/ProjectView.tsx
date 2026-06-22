@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useVault } from './VaultProvider';
-import { Key, Lock, Unlock, Eye, EyeOff } from 'lucide-react';
+import { Key, Lock, Unlock, Eye, EyeOff, FileText, Trash2, RefreshCw, ExternalLink, Loader2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import EnvTable from './EnvTable';
+import * as tauri from '@/lib/tauri';
 
 export default function ProjectView() {
   const { state, saveProject } = useVault();
@@ -13,6 +14,35 @@ export default function ProjectView() {
   const [editingSharePwd, setEditingSharePwd] = useState(false);
   const [sharePwdInput, setSharePwdInput] = useState('');
   const [showSharePwd, setShowSharePwd] = useState(false);
+  const [tempEnvPath, setTempEnvPath] = useState<string | null>(null);
+  const [symlinkPath, setSymlinkPath] = useState<string | null>(null);
+  const [loadingTempEnv, setLoadingTempEnv] = useState(false);
+  const [envSuffix, setEnvSuffix] = useState('');
+
+  useEffect(() => {
+    setTempEnvPath(null);
+    setSymlinkPath(null);
+    setEnvSuffix('');
+    if (!selected) return;
+    tauri.getTempEnvStatus(selected.id).then((status) => {
+      if (status) {
+        setTempEnvPath(status.temp_path);
+        setSymlinkPath(status.symlink_path);
+      } else {
+        const saved = localStorage.getItem(`enveil_symlink_${selected.id}`);
+        if (saved) setSymlinkPath(saved);
+      }
+    }).catch(() => {});
+  }, [selected?.id]);
+
+  const envVarsKey = JSON.stringify(selected?.env_vars ?? {});
+  useEffect(() => {
+    if (!selected || !tempEnvPath) return;
+    const timer = setTimeout(() => {
+      tauri.regenerateTempEnv(selected.id).catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [envVarsKey, selected?.id, tempEnvPath]);
 
   if (!selected) {
     return (
@@ -44,6 +74,62 @@ export default function ProjectView() {
     await saveProject(updated);
     setEditingSharePwd(false);
     setSharePwdInput('');
+  };
+
+  const handleGenerateTempEnv = async (suffix?: string) => {
+    if (!selected) return;
+    setLoadingTempEnv(true);
+    try {
+      const s = suffix ?? envSuffix;
+      if (symlinkPath && !suffix) {
+        await tauri.generateTempEnv(selected.id, symlinkPath);
+        const status = await tauri.getTempEnvStatus(selected.id);
+        if (status) setTempEnvPath(status.temp_path);
+        return;
+      }
+      const { open } = await import('@tauri-apps/api/dialog');
+      const selectedDir = await open({
+        title: 'Select your project folder for the .env symlink',
+        directory: true,
+        multiple: false,
+      });
+      if (!selectedDir) { setLoadingTempEnv(false); return; }
+      const dirPath = String(selectedDir);
+      const baseName = s ? `.env.${s}` : '.env';
+      const envPath = dirPath.endsWith('/') ? `${dirPath}${baseName}` : `${dirPath}/${baseName}`;
+      const path = await tauri.generateTempEnv(selected.id, envPath);
+      localStorage.setItem(`enveil_symlink_${selected.id}`, envPath);
+      setTempEnvPath(path);
+      setSymlinkPath(envPath);
+    } catch (err) {
+      console.error('Failed to generate temp .env:', err);
+    } finally {
+      setLoadingTempEnv(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!selected) return;
+    setLoadingTempEnv(true);
+    try {
+      await tauri.regenerateTempEnv(selected.id);
+    } catch (err) {
+      console.error('Failed to regenerate:', err);
+    } finally {
+      setLoadingTempEnv(false);
+    }
+  };
+
+  const handleDeleteTempEnv = async () => {
+    if (!selected) return;
+    try {
+      await tauri.deleteTempEnv(selected.id);
+      localStorage.removeItem(`enveil_symlink_${selected.id}`);
+      setTempEnvPath(null);
+      setSymlinkPath(null);
+    } catch (err) {
+      console.error('Failed to delete temp .env:', err);
+    }
   };
 
   return (
@@ -111,6 +197,74 @@ export default function ProjectView() {
           </div>
         )}
       </div>
+
+      <div className="flex items-center gap-4 border-b bg-muted/30 px-6 py-2.5">
+        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+        <span
+          className="text-xs font-medium text-muted-foreground cursor-default rounded-sm px-1 py-0.5 transition-colors hover:bg-muted"
+          title="ENVEIL writes your project's env vars to a temporary file (secure, 600 permissions) and creates a symlink in your project folder. The temp file is auto-updated when you edit vars, and deleted on vault lock."
+        >
+          Temporary .env
+        </span>
+        <div className="flex items-center gap-2 flex-1">
+          {tempEnvPath ? (
+            <>
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                  Linked
+                </span>
+                {symlinkPath && (
+                  <code className="inline-flex items-center text-[10px] text-muted-foreground truncate max-w-[240px] cursor-default rounded-sm px-1 py-0.5 transition-colors hover:bg-muted" title={symlinkPath}>
+                    {symlinkPath.split('/').slice(-2).join('/')}
+                  </code>
+                )}
+              </div>
+              <Button variant="ghost" size="sm" className="h-6 text-xs px-2 gap-1" onClick={handleRegenerate} disabled={loadingTempEnv} title="Re-writes the temp .env file with the latest vault data. This happens automatically after each edit — only use this button if you need to force a refresh.">
+                {loadingTempEnv ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                Regenerate
+              </Button>
+              <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-destructive hover:text-destructive gap-1" onClick={handleDeleteTempEnv}>
+                <Trash2 className="h-3 w-3" />
+                Unlink
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                    <select
+                    value={envSuffix}
+                    onChange={(e) => setEnvSuffix(e.target.value)}
+                    disabled={Object.keys(selected?.env_vars ?? {}).length === 0}
+                    className="h-7 w-36 appearance-none rounded border border-border bg-background px-2 pr-7 text-[10px] font-medium text-foreground transition-all duration-150 hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    <option value="">.env</option>
+                    <option value="development">.env.development</option>
+                    <option value="staging">.env.staging</option>
+                    <option value="production">.env.production</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                </div>
+                <Input
+                  value={envSuffix}
+                  onChange={(e) => setEnvSuffix(e.target.value.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase())}
+                  placeholder="custom"
+                  className="h-7 w-36 text-xs"
+                  disabled={Object.keys(selected?.env_vars ?? {}).length === 0}
+                />
+                <span className="text-[10px] text-muted-foreground/60 font-mono">
+                  .env{envSuffix ? `.${envSuffix}` : ''}
+                </span>
+              </div>
+              <Button variant="outline" size="sm" className="h-7 text-xs px-3 gap-1.5" onClick={() => handleGenerateTempEnv()} disabled={loadingTempEnv || Object.keys(selected?.env_vars ?? {}).length === 0}>
+                {loadingTempEnv ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                Generate &amp; Link
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
       <EnvTable />
     </div>
   );
