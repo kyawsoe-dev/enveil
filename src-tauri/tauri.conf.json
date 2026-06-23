@@ -37,16 +37,14 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "targets": ["deb", "appimage", "msi", "dmg"],
-      "linux": {
-        "deb": {
-          "depends": [
-            "libwebkit2gtk-4.0-37",
-            "libgtk-3-0",
-            "libappindicator3-1",
-            "librsvg2-2"
-          ]
-        }
+      "targets": "all",
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.0-37",
+          "libgtk-3-0",
+          "libappindicator3-1",
+          "librsvg2-2"
+        ]
       }
     },
     "security": {
