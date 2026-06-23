@@ -175,7 +175,7 @@ pub fn request_peer_projects(peer: &PeerInfo) -> Result<Vec<ProjectSummary>, Str
 
     let hello = SyncMessage::Hello {
         device_name: "ENVEIL".to_string(),
-        app_version: "0.1.1".to_string(),
+        app_version: "0.1.2".to_string(),
     };
     send_message(&mut stream, &hello)?;
     read_message(&mut stream)?;
@@ -202,7 +202,7 @@ pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Res
 
     let hello = SyncMessage::Hello {
         device_name: "ENVEIL".to_string(),
-        app_version: "0.1.1".to_string(),
+        app_version: "0.1.2".to_string(),
     };
     send_message(&mut stream, &hello)?;
     read_message(&mut stream)?;

@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "ENVEIL",
-    "version": "0.1.1"
+    "version": "0.1.2"
   },
   "tauri": {
     "allowlist": {
@@ -36,7 +36,18 @@
         "icons/128x128@2x.png",
         "icons/icon.icns",
         "icons/icon.ico"
-      ]
+      ],
+      "targets": ["deb", "appimage", "msi", "dmg"],
+      "linux": {
+        "deb": {
+          "depends": [
+            "libwebkit2gtk-4.0-37",
+            "libgtk-3-0",
+            "libappindicator3-1",
+            "librsvg2-2"
+          ]
+        }
+      }
     },
     "security": {
       "csp": "default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; img-src 'self' data:; connect-src 'self'"
@@ -45,7 +56,7 @@
       "active": true,
       "dialog": true,
       "endpoints": [
-        "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.1/updater.json"
+        "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.2/updater.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEyRjI5NjJENTZGOEJGRTkKUldUcHYvaFdMWmJ5b21lMXZVSDlGa1pMajR5clhWZUdmRTh2cXNQV25pUVpaUGF6bzYwWUVRN1EK"
     },

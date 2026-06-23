@@ -10,7 +10,7 @@ export const APP_LOGO_MARK_SRC = "/logo-mark.png";
 export const APP_LOGO_MARK_SRC_SET =
   "/logo-mark-128.png 128w, /logo-mark-256.png 256w, /logo-mark-512.png 512w";
 
-export const APP_VERSION = "0.1.1";
+export const APP_VERSION = "0.1.2";
 
 /** Matches the logo wordmark: Bitcount Single, medium weight */
 export const brandWordmarkClass =
