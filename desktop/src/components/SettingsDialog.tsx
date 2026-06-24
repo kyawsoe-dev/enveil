@@ -16,7 +16,7 @@ import ChangePasswordDialog from './ChangePasswordDialog';
 import ResetVaultDialog from './ResetVaultDialog';
 
 export default function SettingsDialog() {
-  const { autoLockTimeout, changeAutoLockTimeout } = useVault();
+  const { autoLockTimeout, changeAutoLockTimeout, clipboardTimeout, changeClipboardTimeout } = useVault();
   const [open, setOpen] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
@@ -93,11 +93,24 @@ export default function SettingsDialog() {
             </select>
           </div>
 
-          <div className="flex items-start gap-2.5 rounded-lg border border-accent bg-accent/20 px-3 py-2.5 text-xs text-muted-foreground leading-relaxed">
-            <Shield className="h-4 w-4 shrink-0 text-primary mt-0.5" />
-            <span>
-              Inactivity is tracked by user interaction events like mouse movements, keystrokes, and scrolling. Once locked, the master password is required to decrypt variables again.
-            </span>
+          <div className="space-y-2">
+            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Clipboard Auto-Clear
+            </label>
+            <p className="text-xs text-muted-foreground leading-normal">
+              Automatically clear the clipboard after copying a variable value.
+            </p>
+            <select
+              value={clipboardTimeout}
+              onChange={(e) => changeClipboardTimeout(Number(e.target.value))}
+              className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring"
+            >
+              <option value={0}>Disabled</option>
+              <option value={5}>5 Seconds</option>
+              <option value={15}>15 Seconds</option>
+              <option value={30}>30 Seconds</option>
+              <option value={60}>1 Minute</option>
+            </select>
           </div>
 
           <div className="border-t pt-4 space-y-3">
@@ -121,7 +134,7 @@ export default function SettingsDialog() {
               {updateStatus && (
                 <p className="text-xs text-center text-muted-foreground">{updateStatus}</p>
               )}
-            </div>
+          </div>
           </div>
 
         </div>

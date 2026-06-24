@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi, Copy, FileText, ExternalLink, RefreshCw, Trash2 } from 'lucide-react';
+import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi, Copy, FileText, ExternalLink, RefreshCw, Trash2, Upload } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -132,6 +132,15 @@ export default function UsageGuide() {
             </p>
             <p className="text-muted-foreground mt-2">
               The temp file auto-updates when you edit env vars — no manual refresh needed. Use <strong>Regenerate</strong> to force a refresh, or <strong>Unlink</strong> to remove the symlink and temp file. All temp files are automatically deleted when you lock the vault.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <Upload className="h-3.5 w-3.5 text-primary" /> Drag & Drop Import
+            </h3>
+            <p className="text-muted-foreground">
+              Drag a <code className="text-xs bg-muted px-1 rounded">.env</code> file onto the env var table to import. A compact banner appears on drag — release to import. If keys already exist, a conflict dialog lets you pick which to overwrite. You can also paste <code className="text-xs bg-muted px-1 rounded">KEY=VALUE</code> content directly onto the table.
             </p>
           </section>
 

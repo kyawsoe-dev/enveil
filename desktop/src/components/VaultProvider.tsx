@@ -12,6 +12,7 @@ import {
 } from 'react';
 import type { AppView, DiffResult, Project, Vault } from '@/lib/types';
 import * as tauri from '@/lib/tauri';
+import { useToast } from '@/hooks/use-toast';
 
 interface VaultState {
   isUnlocked: boolean;
@@ -101,6 +102,8 @@ interface VaultContextValue {
   runDiff: (a: string, b: string) => Promise<void>;
   autoLockTimeout: string;
   changeAutoLockTimeout: (timeout: string) => void;
+  clipboardTimeout: number;
+  changeClipboardTimeout: (seconds: number) => void;
   refreshVault: () => Promise<void>;
 }
 
@@ -108,17 +111,28 @@ const VaultContext = createContext<VaultContextValue | null>(null);
 
 export function VaultProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
-
+  const { toast } = useToast();
   const [autoLockTimeout, setAutoLockTimeout] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('enveil_auto_lock_timeout') || 'never';
+      return localStorage.getItem('enveil_auto_lock') ?? 'never';
     }
     return 'never';
+  });
+  const [clipboardTimeout, setClipboardTimeoutState] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      return parseInt(localStorage.getItem('enveil_clipboard_timeout') ?? '0', 10);
+    }
+    return 0;
   });
 
   const changeAutoLockTimeout = useCallback((timeout: string) => {
     setAutoLockTimeout(timeout);
-    localStorage.setItem('enveil_auto_lock_timeout', timeout);
+    localStorage.setItem('enveil_auto_lock', timeout);
+  }, []);
+
+  const changeClipboardTimeout = useCallback((seconds: number) => {
+    setClipboardTimeoutState(seconds);
+    localStorage.setItem('enveil_clipboard_timeout', String(seconds));
   }, []);
 
   const lock = useCallback(() => {
@@ -318,6 +332,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       runDiff,
       autoLockTimeout,
       changeAutoLockTimeout,
+      clipboardTimeout,
+      changeClipboardTimeout,
       refreshVault,
     }),
     [
@@ -334,6 +350,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       runDiff,
       autoLockTimeout,
       changeAutoLockTimeout,
+      clipboardTimeout,
+      changeClipboardTimeout,
       refreshVault,
     ],
   );

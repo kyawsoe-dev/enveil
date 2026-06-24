@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Eye,
   EyeOff,
@@ -14,6 +14,7 @@ import {
   Trash2,
   Upload,
   Download,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { parseEnvContent } from "@/lib/env";
 import { useVault } from "./VaultProvider";
+import { useClipboardTimeout } from "@/hooks/use-clipboard-timeout";
 import EditProjectDialog from "./EditProjectDialog";
 import type { Project } from "@/lib/types";
 
@@ -38,6 +41,14 @@ export default function EnvTable() {
   );
   const [revealAll, setRevealAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dropState, setDropState] = useState<
+    { phase: 'idle' } | { phase: 'drag-over' } | { phase: 'importing' } | { phase: 'success'; count: number } | { phase: 'error'; message: string }
+  >({ phase: 'idle' });
+  const [pendingImport, setPendingImport] = useState<{
+    parsed: Record<string, string>;
+    fileName: string;
+  } | null>(null);
+  const { copyWithTimeout } = useClipboardTimeout();
 
   if (!selected) {
     return (
@@ -52,8 +63,133 @@ export default function EnvTable() {
     );
   }
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDropState({ phase: 'drag-over' });
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setDropState({ phase: 'idle' });
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files);
+    const envFile = files.find((f) => f.name.endsWith('.env') || f.name === '.env');
+    if (!envFile) {
+      setDropState({ phase: 'idle' });
+      return;
+    }
+    setDropState({ phase: 'importing' });
+    try {
+      const content = await envFile.text();
+      const parsed = parseEnvContent(content);
+      const parsedCount = Object.keys(parsed).length;
+      const conflicts = Object.keys(parsed).filter((k) => k in selected.env_vars);
+      if (conflicts.length > 0) {
+        setPendingImport({ parsed, fileName: envFile.name });
+        setDropState({ phase: 'idle' });
+      } else {
+        const envs = { ...selected.env_vars, ...parsed };
+        const updated: Project = { ...selected, env_vars: envs };
+        await saveProject(updated);
+        setDropState({ phase: 'success', count: parsedCount });
+        setTimeout(() => setDropState({ phase: 'idle' }), 1500);
+      }
+    } catch (err) {
+      setDropState({ phase: 'error', message: String(err) });
+      setTimeout(() => setDropState({ phase: 'idle' }), 2500);
+    }
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    const text = e.clipboardData.getData('text');
+    if (!text.includes('=')) return;
+    const parsed = parseEnvContent(text);
+    if (Object.keys(parsed).length === 0) return;
+    e.preventDefault();
+    const conflicts = Object.keys(parsed).filter((k) => k in selected.env_vars);
+    if (conflicts.length > 0) {
+      setPendingImport({ parsed, fileName: 'clipboard' });
+      return;
+    }
+    setDropState({ phase: 'importing' });
+    const parsedCount = Object.keys(parsed).length;
+    const envs = { ...selected.env_vars, ...parsed };
+    const updated: Project = { ...selected, env_vars: envs };
+    await saveProject(updated);
+    setDropState({ phase: 'success', count: parsedCount });
+    setTimeout(() => setDropState({ phase: 'idle' }), 1500);
+  };
+
+  const handleConfirmImport = async (selectedKeys: Record<string, string>) => {
+    if (!pendingImport) return;
+    setDropState({ phase: 'importing' });
+    const envs = { ...selected.env_vars, ...selectedKeys };
+    const updated: Project = { ...selected, env_vars: envs };
+    await saveProject(updated);
+    setPendingImport(null);
+    setDropState({ phase: 'success', count: Object.keys(selectedKeys).length });
+    setTimeout(() => setDropState({ phase: 'idle' }), 1500);
+  };
+
+  const handleCancelImport = () => {
+    setPendingImport(null);
+  };
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div
+      className={cn(
+        "relative flex min-h-0 flex-1 flex-col overflow-hidden transition-shadow",
+        dropState.phase === 'drag-over' && "ring-2 ring-primary/30",
+      )}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onPaste={handlePaste}
+    >
+      <AnimatePresence>
+        {dropState.phase !== 'idle' && (
+          <motion.div
+            key="drop-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-background/80"
+          >
+            {dropState.phase === 'importing' ? (
+              <div className="flex items-center gap-2 rounded-lg border bg-card px-4 py-2 text-sm shadow-lg">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span>Importing vars...</span>
+              </div>
+            ) : dropState.phase === 'success' ? (
+              <div className="flex items-center gap-2 rounded-lg border bg-card px-4 py-2 text-sm shadow-lg">
+                <Check className="h-4 w-4 text-emerald-400" />
+                <span>Imported {dropState.count} variable{dropState.count !== 1 ? 's' : ''}</span>
+              </div>
+            ) : dropState.phase === 'error' ? (
+              <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-card px-4 py-2 text-sm shadow-lg">
+                <span className="text-destructive">Import failed</span>
+              </div>
+            ) : (
+              <div className="rounded-lg border-2 border-dashed border-primary/50 bg-card/80 px-8 py-6 text-center shadow-lg">
+                <Upload className="mx-auto mb-2 h-6 w-6 text-primary" />
+                <p className="text-sm font-medium">Drop .env file to import</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="flex shrink-0 items-center justify-between border-b px-4 py-2">
         <div className="flex items-center gap-3">
           <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/20 text-xs font-bold text-primary">
@@ -163,7 +299,160 @@ export default function EnvTable() {
           </tbody>
         </table>
       </div>
+      <DropConflictDialog
+        parsed={pendingImport?.parsed ?? null}
+        existing={selected.env_vars}
+        fileName={pendingImport?.fileName ?? ''}
+        onConfirm={handleConfirmImport}
+        onCancel={handleCancelImport}
+      />
     </div>
+  );
+}
+
+function DropConflictDialog({
+  parsed,
+  existing,
+  fileName,
+  onConfirm,
+  onCancel,
+}: {
+  parsed: Record<string, string> | null;
+  existing: Record<string, string>;
+  fileName: string;
+  onConfirm: (selected: Record<string, string>) => void;
+  onCancel: () => void;
+}) {
+  const [enabled, setEnabled] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (parsed) setEnabled(new Set(Object.keys(parsed)));
+  }, [parsed]);
+
+  const keys = parsed ? Object.keys(parsed) : [];
+  const newKeys = keys.filter((k) => !(k in existing));
+  const conflictKeys = keys.filter((k) => k in existing);
+  const checkboxRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (checkboxRef.current) {
+      checkboxRef.current.indeterminate = enabled.size > 0 && enabled.size < keys.length;
+    }
+  }, [enabled, keys.length]);
+
+  const handleToggle = (key: string) => {
+    setEnabled((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleOverwriteAll = () => {
+    if (!parsed) return;
+    setEnabled(new Set(keys));
+  };
+
+  const handleSkipAll = () => {
+    setEnabled(new Set());
+  };
+
+  if (!parsed || keys.length === 0) return null;
+
+  return (
+    <Dialog open={!!parsed} onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="sm:max-w-lg max-h-[70vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            Import from {fileName}
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            {newKeys.length} new, {conflictKeys.length} conflict{conflictKeys.length !== 1 ? 's' : ''}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto min-h-0 border rounded-lg text-xs">
+          <table className="w-full">
+            <thead className="sticky top-0 bg-background">
+              <tr className="text-left text-muted-foreground border-b">
+                <th className="w-8 px-2 py-1.5 font-medium">
+                  <input
+                    ref={checkboxRef}
+                    type="checkbox"
+                    checked={enabled.size === keys.length}
+                    onChange={() => {
+                      if (enabled.size === keys.length) handleSkipAll();
+                      else handleOverwriteAll();
+                    }}
+                    className="h-3.5 w-3.5 accent-primary"
+                  />
+                </th>
+                <th className="px-2 py-1.5 font-medium">Key</th>
+                <th className="px-2 py-1.5 font-medium">Value</th>
+                <th className="w-16 px-2 py-1.5 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {keys.map((k) => {
+                const isConflict = k in existing;
+                return (
+                  <tr key={k} className="border-b border-border/30 hover:bg-accent/20">
+                    <td className="px-2 py-1.5">
+                      <input
+                        type="checkbox"
+                        checked={enabled.has(k)}
+                        onChange={() => handleToggle(k)}
+                        className="h-3.5 w-3.5 accent-primary"
+                      />
+                    </td>
+                    <td className="px-2 py-1.5 font-mono text-env-key">{k}</td>
+                    <td className="px-2 py-1.5 font-mono text-env-value max-w-[200px] truncate">
+                      {parsed[k]}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {isConflict ? (
+                        <span className="text-amber-500 font-medium">overwrite</span>
+                      ) : (
+                        <span className="text-emerald-500 font-medium">new</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between pt-2">
+          <div className="flex gap-1.5">
+            <Button variant="outline" size="sm" className="text-xs h-7" onClick={handleOverwriteAll}>
+              All
+            </Button>
+            <Button variant="outline" size="sm" className="text-xs h-7" onClick={handleSkipAll}>
+              None
+            </Button>
+          </div>
+          <div className="flex gap-1.5">
+            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="text-xs h-7 gap-1.5"
+              disabled={enabled.size === 0}
+              onClick={() => {
+                const selected: Record<string, string> = {};
+                for (const k of enabled) selected[k] = parsed[k];
+                onConfirm(selected);
+              }}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Import {enabled.size > 0 ? `(${enabled.size})` : ''}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -184,13 +473,14 @@ function EnvVarRow({
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const { copyWithTimeout } = useClipboardTimeout();
 
   useEffect(() => {
     setRevealed(revealAll);
   }, [revealAll]);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(`${name}=${value}`);
+    await copyWithTimeout(`${name}=${value}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   };
@@ -427,16 +717,8 @@ function BulkImportDialog({
   const [text, setText] = useState("");
 
   const handleImport = async () => {
-    const envs = { ...project.env_vars };
-    for (const line of text.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const eqIdx = trimmed.indexOf("=");
-      if (eqIdx === -1) continue;
-      const k = trimmed.slice(0, eqIdx).trim();
-      const v = trimmed.slice(eqIdx + 1).trim();
-      if (k) envs[k] = v;
-    }
+    const parsed = parseEnvContent(text);
+    const envs = { ...project.env_vars, ...parsed };
     const updated: Project = { ...project, env_vars: envs };
     await onSave(updated);
     setText("");

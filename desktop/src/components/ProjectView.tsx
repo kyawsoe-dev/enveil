@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useVault } from './VaultProvider';
-import { Key, Lock, Unlock, Eye, EyeOff, FileText, Trash2, RefreshCw, ExternalLink, Loader2, ChevronDown } from 'lucide-react';
+import { Key, Lock, Unlock, Eye, EyeOff, FileText, Trash2, RefreshCw, ExternalLink, Loader2, ChevronDown, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import EnvTable from './EnvTable';
@@ -18,6 +18,16 @@ export default function ProjectView() {
   const [symlinkPath, setSymlinkPath] = useState<string | null>(null);
   const [loadingTempEnv, setLoadingTempEnv] = useState(false);
   const [envSuffix, setEnvSuffix] = useState('');
+
+  const handleOpenFolder = async () => {
+    if (!symlinkPath) return;
+    const parent = symlinkPath.split('/').slice(0, -1).join('/');
+    if (!parent) return;
+    try {
+      const { open } = await import('@tauri-apps/api/shell');
+      await open(parent);
+    } catch {}
+  };
 
   useEffect(() => {
     setTempEnvPath(null);
@@ -230,6 +240,20 @@ export default function ProjectView() {
                   Re-writes the temp .env file with the latest vault data. This happens automatically after each edit — only use this button if you need to force a refresh.
                 </div>
               </div>
+              {symlinkPath && (
+                <div className="group relative">
+                  <button
+                    onClick={handleOpenFolder}
+                    className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    title="Open in Finder"
+                  >
+                    <FolderOpen className="h-3.5 w-3.5" />
+                  </button>
+                  <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-44 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                    Open project folder in Finder
+                  </div>
+                </div>
+              )}
               <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-destructive hover:text-destructive gap-1" onClick={handleDeleteTempEnv}>
                 <Trash2 className="h-3 w-3" />
                 Unlink

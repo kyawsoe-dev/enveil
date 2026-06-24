@@ -25,6 +25,9 @@
       "shell": {
         "all": true,
         "open": true
+      },
+      "clipboard": {
+        "writeText": true
       }
     },
     "bundle": {

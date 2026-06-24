@@ -18,11 +18,13 @@ import {
   Wifi,
   Share2,
   Copy,
+  Keyboard,
 } from "lucide-react";
 import UsageGuide from "./UsageGuide";
 import EditProjectDialog from "./EditProjectDialog";
 import DeleteProjectDialog from "./DeleteProjectDialog";
 import SettingsDialog from "./SettingsDialog";
+import ShortcutReference from "./ShortcutReference";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -300,7 +302,19 @@ export default function Sidebar({
           <Github className="h-4 w-4" />
           GitHub
         </a>
-        <SettingsDialog />
+          <ShortcutReference
+            trigger={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <Keyboard className="h-4 w-4" />
+                Shortcuts
+              </Button>
+            }
+          />
+          <SettingsDialog />
         <Dialog>
           <DialogTrigger asChild>
             <Button
