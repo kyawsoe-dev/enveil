@@ -49,6 +49,8 @@ export default function EnvTable() {
     fileName: string;
   } | null>(null);
   const { copyWithTimeout } = useClipboardTimeout();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragCounterRef = useRef(0);
 
   if (!selected) {
     return (
@@ -70,19 +72,26 @@ export default function EnvTable() {
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
-    setDropState({ phase: 'drag-over' });
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) {
+      setDropState({ phase: 'drag-over' });
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-    setDropState({ phase: 'idle' });
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setDropState({ phase: 'idle' });
+    }
   };
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
+    dragCounterRef.current = 0;
     const files = Array.from(e.dataTransfer.files);
-    const envFile = files.find((f) => f.name.endsWith('.env') || f.name === '.env');
+    const envFile = files.find((f) => f.name === '.env' || /^\.env(\..+)?$/.test(f.name));
     if (!envFile) {
       setDropState({ phase: 'idle' });
       return;
@@ -108,6 +117,66 @@ export default function EnvTable() {
       setTimeout(() => setDropState({ phase: 'idle' }), 2500);
     }
   };
+
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const saveRef = useRef(saveProject);
+  saveRef.current = saveProject;
+
+  useEffect(() => {
+    let unlisten: () => void;
+    (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        unlisten = await listen<{ type: string; paths: string[] }>('file-drop-internal', (event) => {
+          const { type, paths } = event.payload;
+          if (type === 'hovered') {
+            dragCounterRef.current += 1;
+            if (dragCounterRef.current === 1) setDropState({ phase: 'drag-over' });
+          } else if (type === 'cancelled') {
+            dragCounterRef.current = 0;
+            setDropState({ phase: 'idle' });
+          } else if (type === 'dropped') {
+            dragCounterRef.current = 0;
+            const envPath = paths.find(
+              (p) => p.endsWith('.env') || /\.env(\..+)?$/.test(p),
+            );
+            if (!envPath) {
+              setDropState({ phase: 'idle' });
+              return;
+            }
+            setDropState({ phase: 'importing' });
+            (async () => {
+              try {
+                const { readTextFile } = await import('@tauri-apps/api/fs');
+                const content = await readTextFile(envPath);
+                const fileName = envPath.split(/[\\/]/).pop() || '.env';
+                const parsed = parseEnvContent(content);
+                const parsedCount = Object.keys(parsed).length;
+                const sel = selectedRef.current;
+                if (!sel) { setDropState({ phase: 'idle' }); return; }
+                const conflicts = Object.keys(parsed).filter((k) => k in sel.env_vars);
+                if (conflicts.length > 0) {
+                  setPendingImport({ parsed, fileName });
+                  setDropState({ phase: 'idle' });
+                } else {
+                  const envs = { ...sel.env_vars, ...parsed };
+                  const updated: Project = { ...sel, env_vars: envs };
+                  await saveRef.current(updated);
+                  setDropState({ phase: 'success', count: parsedCount });
+                  setTimeout(() => setDropState({ phase: 'idle' }), 1500);
+                }
+              } catch (err) {
+                setDropState({ phase: 'error', message: String(err) });
+                setTimeout(() => setDropState({ phase: 'idle' }), 2500);
+              }
+            })();
+          }
+        });
+      } catch {}
+    })();
+    return () => { if (unlisten) unlisten(); };
+  }, []);
 
   const handlePaste = async (e: React.ClipboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -147,6 +216,7 @@ export default function EnvTable() {
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "relative flex min-h-0 flex-1 flex-col overflow-hidden transition-shadow",
         dropState.phase === 'drag-over' && "ring-2 ring-primary/30",
@@ -165,7 +235,7 @@ export default function EnvTable() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute inset-0 z-50 flex items-center justify-center bg-background/80"
+            className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center bg-background/80"
           >
             {dropState.phase === 'importing' ? (
               <div className="flex items-center gap-2 rounded-lg border bg-card px-4 py-2 text-sm shadow-lg">
@@ -182,9 +252,9 @@ export default function EnvTable() {
                 <span className="text-destructive">Import failed</span>
               </div>
             ) : (
-              <div className="rounded-lg border-2 border-dashed border-primary/50 bg-card/80 px-8 py-6 text-center shadow-lg">
-                <Upload className="mx-auto mb-2 h-6 w-6 text-primary" />
-                <p className="text-sm font-medium">Drop .env file to import</p>
+              <div className="rounded-lg border-2 border-dashed border-primary/50 bg-card/80 px-16 py-16 text-center shadow-lg">
+                <Upload className="mx-auto mb-3 h-8 w-8 text-primary" />
+                <p className="text-base font-medium">Drop .env file to import</p>
               </div>
             )}
           </motion.div>
@@ -362,7 +432,7 @@ function DropConflictDialog({
 
   return (
     <Dialog open={!!parsed} onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <DialogContent className="sm:max-w-lg max-h-[70vh] flex flex-col">
+      <DialogContent className="sm:max-w-4xl max-h-[75vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />

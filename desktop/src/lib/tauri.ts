@@ -71,3 +71,7 @@ export interface TempEnvStatus {
 export async function getTempEnvStatus(projectId: string): Promise<TempEnvStatus | null> {
   return invoke<TempEnvStatus | null>('get_temp_env_status', { projectId });
 }
+
+export async function openFolder(path: string): Promise<void> {
+  return invoke<void>('open_folder', { path });
+}

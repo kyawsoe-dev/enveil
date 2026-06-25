@@ -21,12 +21,13 @@ export default function ProjectView() {
 
   const handleOpenFolder = async () => {
     if (!symlinkPath) return;
-    const parent = symlinkPath.split('/').slice(0, -1).join('/');
+    const parent = symlinkPath.replace(/[\\/]+$/, '').split(/[\\/]/).slice(0, -1).join('/');
     if (!parent) return;
     try {
-      const { open } = await import('@tauri-apps/api/shell');
-      await open(parent);
-    } catch {}
+      await tauri.openFolder(parent);
+    } catch (err) {
+      console.error('Failed to open folder:', err);
+    }
   };
 
   useEffect(() => {

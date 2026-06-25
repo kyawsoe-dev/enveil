@@ -17,6 +17,25 @@ fn main() {
         .manage(AppState(Arc::new(Mutex::new(None))))
         .manage(TempEnvState(Mutex::new(HashMap::new())))
         .manage(SyncAppState::new())
+        .on_window_event(|event| {
+            let drop_info = match event.event() {
+                tauri::WindowEvent::FileDrop(e) => e,
+                _ => return,
+            };
+            let (type_str, file_paths) = match &drop_info {
+                tauri::FileDropEvent::Hovered(paths) => ("hovered", paths),
+                tauri::FileDropEvent::Dropped(paths) => ("dropped", paths),
+                tauri::FileDropEvent::Cancelled => return,
+                _ => return,
+            };
+            let paths: Vec<String> =
+                file_paths.iter().map(|p| p.to_string_lossy().to_string()).collect();
+            let payload = serde_json::json!({
+                "type": type_str,
+                "paths": paths,
+            });
+            let _ = event.window().emit("file-drop-internal", payload);
+        })
         .invoke_handler(tauri::generate_handler![
             commands::vault_commands::initialize_vault,
             commands::vault_commands::unlock_vault,
@@ -33,6 +52,7 @@ fn main() {
             commands::vault_commands::regenerate_temp_env,
             commands::vault_commands::delete_temp_env,
             commands::vault_commands::cleanup_all_temp_envs,
+            commands::vault_commands::open_folder,
             commands::sync_commands::start_lan_sync,
             commands::sync_commands::stop_lan_sync,
             commands::sync_commands::get_peers,
