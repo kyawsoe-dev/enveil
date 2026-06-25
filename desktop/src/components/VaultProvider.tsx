@@ -22,6 +22,9 @@ interface VaultState {
   activeView: AppView;
   diffResult: DiffResult | null;
   diffProjectIds: [string, string] | null;
+  fileDiffResult: DiffResult | null;
+  fileDiffProjectId: string | null;
+  fileDiffFilePath: string | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -35,6 +38,8 @@ type Action =
   | { type: 'SET_VIEW'; view: AppView }
   | { type: 'SET_DIFF'; a: string; b: string }
   | { type: 'SET_DIFF_RESULT'; result: DiffResult }
+  | { type: 'SET_FILE_DIFF'; result: DiffResult; projectId: string; filePath: string }
+  | { type: 'CLEAR_FILE_DIFF' }
   | { type: 'CLEAR_DIFF' }
   | { type: 'SET_ERROR'; error: string | null }
   | { type: 'SET_LOADING'; isLoading: boolean };
@@ -47,6 +52,9 @@ const initialState: VaultState = {
   activeView: 'dashboard',
   diffResult: null,
   diffProjectIds: null,
+  fileDiffResult: null,
+  fileDiffProjectId: null,
+  fileDiffFilePath: null,
   isLoading: false,
   error: null,
 };
@@ -77,6 +85,10 @@ function reducer(state: VaultState, action: Action): VaultState {
       return { ...state, diffProjectIds: [action.a, action.b], diffResult: null };
     case 'SET_DIFF_RESULT':
       return { ...state, diffResult: action.result };
+    case 'SET_FILE_DIFF':
+      return { ...state, fileDiffResult: action.result, fileDiffProjectId: action.projectId, fileDiffFilePath: action.filePath };
+    case 'CLEAR_FILE_DIFF':
+      return { ...state, fileDiffResult: null, fileDiffProjectId: null, fileDiffFilePath: null };
     case 'CLEAR_DIFF':
       return { ...state, diffProjectIds: null, diffResult: null };
     case 'SET_ERROR':
@@ -100,6 +112,8 @@ interface VaultContextValue {
   selectProject: (id: string | null) => void;
   setView: (view: AppView) => void;
   runDiff: (a: string, b: string) => Promise<void>;
+  runFileDiff: (projectId: string, filePath: string) => Promise<void>;
+  clearFileDiff: () => void;
   autoLockTimeout: string;
   changeAutoLockTimeout: (timeout: string) => void;
   clipboardTimeout: number;
@@ -317,6 +331,20 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const runFileDiff = useCallback(async (projectId: string, filePath: string) => {
+    try {
+      const result = await tauri.diffProjectWithFile(projectId, filePath);
+      dispatch({ type: 'SET_FILE_DIFF', result, projectId, filePath });
+      dispatch({ type: 'SET_VIEW', view: 'diff' });
+    } catch (err) {
+      dispatch({ type: 'SET_ERROR', error: String(err) });
+    }
+  }, []);
+
+  const clearFileDiff = useCallback(() => {
+    dispatch({ type: 'CLEAR_FILE_DIFF' });
+  }, []);
+
   const value = useMemo(
     () => ({
       state,
@@ -330,6 +358,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       selectProject,
       setView,
       runDiff,
+      runFileDiff,
+      clearFileDiff,
       autoLockTimeout,
       changeAutoLockTimeout,
       clipboardTimeout,
@@ -348,6 +378,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       selectProject,
       setView,
       runDiff,
+      runFileDiff,
+      clearFileDiff,
       autoLockTimeout,
       changeAutoLockTimeout,
       clipboardTimeout,

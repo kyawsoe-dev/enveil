@@ -47,7 +47,7 @@ function AppShell() {
     <div className="flex h-screen overflow-hidden">
       <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       <main className="flex flex-1 flex-col overflow-hidden">
-        <div className="border-b px-2 py-1.5">
+        <div className="border-b px-2 py-2">
           <SearchBar />
         </div>
         <div className="flex min-h-0 flex-1 overflow-hidden">

@@ -75,3 +75,18 @@ export async function getTempEnvStatus(projectId: string): Promise<TempEnvStatus
 export async function openFolder(path: string): Promise<void> {
   return invoke<void>('open_folder', { path });
 }
+
+export async function openInTerminal(path: string): Promise<void> {
+  return invoke<void>('open_in_terminal', { path });
+}
+
+export async function generateEnvExample(projectId: string, outputPath?: string): Promise<string> {
+  return invoke<string>('generate_env_example', { projectId, outputPath: outputPath ?? null });
+}
+
+export async function diffProjectWithFile(
+  projectId: string,
+  filePath: string,
+): Promise<DiffResult> {
+  return invoke<DiffResult>('diff_project_with_file', { projectId, filePath });
+}

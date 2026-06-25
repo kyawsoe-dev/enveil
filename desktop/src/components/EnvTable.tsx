@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Eye,
@@ -15,6 +15,7 @@ import {
   Upload,
   Download,
   Loader2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +52,129 @@ export default function EnvTable() {
   const { copyWithTimeout } = useClipboardTimeout();
   const containerRef = useRef<HTMLDivElement>(null);
   const dragCounterRef = useRef(0);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [copyAllDone, setCopyAllDone] = useState(false);
+  const [copySelDone, setCopySelDone] = useState(false);
+  const lastClickedRef = useRef<string | null>(null);
+  const selectAllRef = useRef<HTMLInputElement>(null);
+
+  const filteredEntries = useMemo(() => {
+    if (!selected) return [];
+    return Object.entries(selected.env_vars)
+      .filter(([key, value]) =>
+        `${key} ${value}`.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+  }, [selected?.env_vars, searchQuery]);
+
+  const filteredKeys = useMemo(() => filteredEntries.map(([k]) => k), [filteredEntries]);
+
+  const allSelected = filteredKeys.length > 0 && filteredKeys.every(k => selectedKeys.has(k));
+  const someSelected = filteredKeys.some(k => selectedKeys.has(k));
+
+  const handleSelectAll = () => {
+    if (allSelected) {
+      setSelectedKeys(new Set());
+    } else {
+      setSelectedKeys(new Set(filteredKeys));
+    }
+  };
+
+  const handleSelect = (key: string, shiftKey?: boolean) => {
+    setSelectedKeys(prev => {
+      const next = new Set(prev);
+      if (shiftKey && lastClickedRef.current) {
+        const currentIdx = filteredKeys.indexOf(key);
+        const lastIdx = filteredKeys.indexOf(lastClickedRef.current);
+        if (currentIdx !== -1 && lastIdx !== -1) {
+          const start = Math.min(currentIdx, lastIdx);
+          const end = Math.max(currentIdx, lastIdx);
+          for (let i = start; i <= end; i++) {
+            next.add(filteredKeys[i]);
+          }
+        }
+      } else {
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+      }
+      return next;
+    });
+    lastClickedRef.current = key;
+  };
+
+  const handleClearSelection = () => {
+    setSelectedKeys(new Set());
+  };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedKeys(new Set());
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected && !allSelected;
+    }
+  }, [someSelected, allSelected]);
+
+  useEffect(() => {
+    setSelectedKeys(new Set());
+  }, [selected?.id]);
+
+  const handleDeleteSelected = async () => {
+    if (selectedKeys.size === 0 || !selected) return;
+    const keys = Array.from(selectedKeys);
+    if (!confirm(`Delete ${keys.length} variable${keys.length !== 1 ? 's' : ''}?\n\n${keys.join('\n')}`)) return;
+    const envs = Object.fromEntries(
+      Object.entries(selected.env_vars).filter(([k]) => !selectedKeys.has(k)),
+    );
+    const updated: Project = { ...selected, env_vars: envs };
+    await saveProject(updated);
+    setSelectedKeys(new Set());
+  };
+
+  const handleCopyAll = async () => {
+    if (!selected) return;
+    const text = Object.entries(selected.env_vars)
+      .map(([k, v]) => `${k}=${v}`)
+      .join('\n');
+    await navigator.clipboard.writeText(text);
+    setCopyAllDone(true);
+    setTimeout(() => setCopyAllDone(false), 1200);
+  };
+
+  const handleCopySelected = async () => {
+    if (selectedKeys.size === 0 || !selected) return;
+    const text = Array.from(selectedKeys)
+      .map(k => `${k}=${selected.env_vars[k]}`)
+      .join('\n');
+    await navigator.clipboard.writeText(text);
+    setCopySelDone(true);
+    setTimeout(() => setCopySelDone(false), 1200);
+  };
+
+  const handleExportSelected = async () => {
+    if (selectedKeys.size === 0 || !selected) return;
+    const content = Array.from(selectedKeys)
+      .map(k => `${k}=${selected.env_vars[k]}`)
+      .join('\n');
+    const safeName = selected.name.replace(/[^\w.-]+/g, '_') || 'selected';
+    try {
+      const { save } = await import('@tauri-apps/api/dialog');
+      const { writeTextFile } = await import('@tauri-apps/api/fs');
+      const path = await save({
+        defaultPath: `${safeName}.env`,
+        filters: [{ name: 'Env', extensions: ['env'] }],
+      });
+      if (!path) return;
+      await writeTextFile(path, content);
+    } catch {
+      await navigator.clipboard.writeText(content);
+      window.alert('Could not save file. Selected variables were copied to clipboard instead.');
+    }
+  };
 
   if (!selected) {
     return (
@@ -91,7 +215,7 @@ export default function EnvTable() {
     e.preventDefault();
     dragCounterRef.current = 0;
     const files = Array.from(e.dataTransfer.files);
-    const envFile = files.find((f) => f.name === '.env' || /^\.env(\..+)?$/.test(f.name));
+    const envFile = files.find((f) => f.name === '.env' || /\.env(\.[a-zA-Z0-9_-]+)?$/.test(f.name));
     if (!envFile) {
       setDropState({ phase: 'idle' });
       return;
@@ -138,9 +262,10 @@ export default function EnvTable() {
             setDropState({ phase: 'idle' });
           } else if (type === 'dropped') {
             dragCounterRef.current = 0;
-            const envPath = paths.find(
-              (p) => p.endsWith('.env') || /\.env(\..+)?$/.test(p),
-            );
+            const envPath = paths.find(p => {
+              const name = p.split(/[\\/]/).pop() || '';
+              return name === '.env' || /\.env(\.[a-zA-Z0-9_-]+)?$/.test(name);
+            });
             if (!envPath) {
               setDropState({ phase: 'idle' });
               return;
@@ -282,8 +407,46 @@ export default function EnvTable() {
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5">
-        <span className="text-xs text-muted-foreground">Variables</span>
+      <div className="flex shrink-0 items-center gap-2 border-b px-3 py-4">
+        <span className="text-xs text-muted-foreground">{selectedKeys.size > 0 ? 'Selected Variables' : 'Variables'}</span>
+        {selectedKeys.size > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium tabular-nums text-foreground">{selectedKeys.size}</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCopySelected}
+                className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                title="Copy selected"
+              >
+                {copySelDone ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+              </button>
+              <div className="w-px h-4 bg-border" />
+              <button
+                onClick={handleExportSelected}
+                className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                title="Export selected"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </button>
+              <div className="w-px h-4 bg-border" />
+              <button
+                onClick={handleDeleteSelected}
+                className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                title="Delete selected"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              <div className="w-px h-4 bg-border" />
+              <button
+                onClick={handleClearSelection}
+                className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                title="Clear selection"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex-1" />
         <input
           value={searchQuery}
@@ -292,20 +455,31 @@ export default function EnvTable() {
           className="h-7 w-44 rounded border bg-background px-2 text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
         />
         {Object.keys(selected.env_vars).length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setRevealAll(!revealAll)}
-            className="gap-1.5 h-7 text-xs text-muted-foreground hover:text-foreground"
-            title={revealAll ? "Hide all values" : "Show all values"}
-          >
-            {revealAll ? (
-              <EyeOff className="h-3.5 w-3.5" />
-            ) : (
-              <Eye className="h-3.5 w-3.5" />
-            )}
-            {revealAll ? "Hide All" : "Show All"}
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setRevealAll(!revealAll)}
+              className="gap-1.5 h-7 text-xs hover:text-foreground"
+              title={revealAll ? "Hide all values" : "Show all values"}
+            >
+              {revealAll ? (
+                <EyeOff className="h-3.5 w-3.5" />
+              ) : (
+                <Eye className="h-3.5 w-3.5" />
+              )}
+              {revealAll ? "Hide All" : "Show All"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCopyAll}
+              className="gap-1.5 h-7 text-xs hover:text-foreground"
+            >
+              {copyAllDone ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+              Copy All
+            </Button>
+          </>
         )}
         <ExportButton project={selected} />
         <BulkImportDialog project={selected} onSave={saveProject} />
@@ -316,6 +490,15 @@ export default function EnvTable() {
         <table className="w-full">
           <thead className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
             <tr className="text-left text-xs text-muted-foreground">
+              <th className="w-8 px-3 py-2 font-medium">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={handleSelectAll}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+              </th>
               <th className="w-8 px-3 py-2 font-medium">#</th>
               <th className="px-3 py-2 font-medium">Key</th>
               <th className="px-3 py-2 font-medium">Value</th>
@@ -323,27 +506,24 @@ export default function EnvTable() {
             </tr>
           </thead>
           <tbody>
-            {Object.entries(selected.env_vars)
-              .filter(([key, value]) =>
-                `${key} ${value}`
-                  .toLowerCase()
-                  .includes(searchQuery.toLowerCase()),
-              )
-              .map(([key, value], idx) => (
-                <EnvVarRow
-                  key={key}
-                  idx={idx}
-                  name={key}
-                  value={value}
-                  project={selected}
-                  onSave={saveProject}
-                  revealAll={revealAll}
-                />
-              ))}
+            {filteredEntries.map(([key, value], idx) => (
+              <EnvVarRow
+                key={key}
+                idx={idx}
+                name={key}
+                value={value}
+                project={selected}
+                onSave={saveProject}
+                revealAll={revealAll}
+                selected={selectedKeys.has(key)}
+                onSelect={() => handleSelect(key)}
+                onSelectRange={() => handleSelect(key, true)}
+              />
+            ))}
             {Object.keys(selected.env_vars).length === 0 && (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="p-6 text-center text-sm text-muted-foreground"
                 >
                   No environment variables defined
@@ -351,15 +531,10 @@ export default function EnvTable() {
               </tr>
             )}
             {searchQuery &&
-              Object.keys(selected.env_vars).length > 0 &&
-              Object.entries(selected.env_vars).filter(([key, value]) =>
-                `${key} ${value}`
-                  .toLowerCase()
-                  .includes(searchQuery.toLowerCase()),
-              ).length === 0 && (
+              Object.keys(selected.env_vars).length > 0 && filteredEntries.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="p-6 text-center text-sm text-muted-foreground"
                   >
                     No variables match &quot;{searchQuery}&quot;
@@ -533,6 +708,9 @@ function EnvVarRow({
   project,
   onSave,
   revealAll,
+  selected,
+  onSelect,
+  onSelectRange,
 }: {
   idx: number;
   name: string;
@@ -540,6 +718,9 @@ function EnvVarRow({
   project: Project;
   onSave: (p: Project) => Promise<void>;
   revealAll: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
+  onSelectRange?: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -570,8 +751,22 @@ function EnvVarRow({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: idx * 0.015 }}
-      className="border-b border-border/40 transition-colors hover:bg-accent/30"
+      className={cn(
+        "border-b border-border/40 transition-colors hover:bg-accent/30",
+        selected && "bg-accent/20",
+      )}
     >
+      <td className="px-3 py-2">
+        <input
+          type="checkbox"
+          checked={!!selected}
+          onClick={(e) => {
+            if (e.shiftKey) { onSelectRange?.(); e.preventDefault(); return; }
+          }}
+          onChange={onSelect}
+          className="h-3.5 w-3.5 accent-primary"
+        />
+      </td>
       <td className="px-3 py-2 text-xs text-muted-foreground tabular-nums">
         {idx + 1}
       </td>

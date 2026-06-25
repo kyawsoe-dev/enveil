@@ -13,16 +13,19 @@ import {
   CheckCheck,
   ChevronDown,
   ChevronRight,
+  FileText,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useVault } from './VaultProvider';
 import * as tauri from '@/lib/tauri';
-import type { DiffResult } from '@/lib/types';
+import type { DiffResult, Project } from '@/lib/types';
 
 export default function DiffView() {
-  const { state } = useVault();
+  const { state, saveProject, runFileDiff, clearFileDiff, selectProject, setView } = useVault();
   const projects = state.vault?.projects ?? [];
   const [projectA, setProjectA] = useState(projects[0]?.id ?? '');
   const [projectB, setProjectB] = useState(projects[1]?.id ?? '');
@@ -30,6 +33,12 @@ export default function DiffView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showIdentical, setShowIdentical] = useState(false);
+  const [applying, setApplying] = useState(false);
+
+  const fileDiff = state.fileDiffResult;
+  const fileProjectId = state.fileDiffProjectId;
+  const filePath = state.fileDiffFilePath;
+  const isFileMode = !!(fileDiff && fileProjectId && filePath);
 
   const projectAData = useMemo(
     () => projects.find((p) => p.id === projectA),
@@ -40,12 +49,27 @@ export default function DiffView() {
     [projects, projectB],
   );
 
+  const fileProjectData = useMemo(
+    () => projects.find((p) => p.id === fileProjectId),
+    [projects, fileProjectId],
+  );
+
   const identicalKeys = useMemo(() => {
     if (!projectAData || !projectBData) return [];
     return Object.keys(projectAData.env_vars).filter(
       (k) => k in projectBData.env_vars && projectAData.env_vars[k] === projectBData.env_vars[k],
     );
   }, [projectAData, projectBData]);
+
+  const fileIdenticalKeys = useMemo(() => {
+    if (!fileDiff || !fileProjectData) return [];
+    return Object.keys(fileProjectData.env_vars).filter(
+      (k) =>
+        !(k in fileDiff.only_in_a) &&
+        !(k in fileDiff.only_in_b) &&
+        !(k in fileDiff.changed),
+    );
+  }, [fileDiff, fileProjectData]);
 
   const handleCompare = async () => {
     if (!projectA || !projectB || projectA === projectB) return;
@@ -76,7 +100,228 @@ export default function DiffView() {
     return { aOnly, bOnly, changed, identical, total: aOnly + bOnly + changed + identical };
   }, [result, identicalKeys]);
 
-  if (projects.length < 2) {
+  const fileStats = useMemo(() => {
+    if (!fileDiff) return null;
+    const aOnly = Object.keys(fileDiff.only_in_a).length;
+    const bOnly = Object.keys(fileDiff.only_in_b).length;
+    const changed = Object.keys(fileDiff.changed).length;
+    const identical = fileIdenticalKeys.length;
+    return { aOnly, bOnly, changed, identical, total: aOnly + bOnly + changed + identical };
+  }, [fileDiff, fileIdenticalKeys]);
+
+  const handleApplyFileToVault = async () => {
+    if (!fileDiff || !fileProjectData || !fileProjectId) return;
+    setApplying(true);
+    try {
+      const merged: Record<string, string> = { ...fileProjectData.env_vars };
+      for (const [k, v] of Object.entries(fileDiff.only_in_b)) {
+        merged[k] = v;
+      }
+      for (const [k, [, vB]] of Object.entries(fileDiff.changed)) {
+        merged[k] = vB;
+      }
+      const updated: Project = { ...fileProjectData, env_vars: merged };
+      await saveProject(updated);
+      clearFileDiff();
+      selectProject(fileProjectId);
+      setView('project');
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const handleApplyVaultToFile = async () => {
+    if (!fileDiff || !fileProjectData || !filePath) return;
+    setApplying(true);
+    try {
+      const content = Object.entries(fileProjectData.env_vars)
+        .map(([k, v]) => `${k}=${v}`)
+        .join('\n');
+      const { writeTextFile } = await import('@tauri-apps/api/fs');
+      await writeTextFile(filePath, content);
+      clearFileDiff();
+      selectProject(fileProjectId);
+      setView('project');
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const handleExitFileMode = () => {
+    clearFileDiff();
+    if (fileProjectId) {
+      selectProject(fileProjectId);
+      setView('project');
+    }
+  };
+
+  if (isFileMode && fileDiff && fileStats) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <div className="flex items-center justify-between border-b px-4 py-2">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Diff: Vault vs File</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleApplyVaultToFile} disabled={applying}>
+              {applying ? 'Applying...' : <><Download className="h-3.5 w-3.5" /> Apply vault to file</>}
+            </Button>
+            <Button size="sm" className="h-7 text-xs gap-1.5" onClick={handleApplyFileToVault} disabled={applying}>
+              {applying ? 'Applying...' : <><Upload className="h-3.5 w-3.5" /> Apply file to vault</>}
+            </Button>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExitFileMode} disabled={applying}>
+              Exit
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-2 text-xs">
+          <span className="font-medium text-foreground">{fileDiff.project_a_name}</span>
+          <span className="text-muted-foreground">
+            {fileProjectData ? Object.keys(fileProjectData.env_vars).length : '?'} vars
+          </span>
+          <span className="text-muted-foreground">vs</span>
+          <span className="font-medium text-foreground">{fileDiff.project_b_name}</span>
+          <span className="text-muted-foreground">
+            {fileDiff ? Object.keys(fileDiff.only_in_a).length + Object.keys(fileDiff.only_in_b).length + Object.keys(fileDiff.changed).length + fileIdenticalKeys.length : '?'} vars
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <Badge variant="destructive" className="gap-1 text-[10px]">
+              <Minus className="h-2.5 w-2.5" />
+              {fileStats.aOnly} only in vault
+            </Badge>
+            <Badge variant="success" className="gap-1 text-[10px]">
+              <Plus className="h-2.5 w-2.5" />
+              {fileStats.bOnly} only in file
+            </Badge>
+            <Badge variant="warning" className="gap-1 text-[10px]">
+              <Pencil className="h-2.5 w-2.5" />
+              {fileStats.changed} changed
+            </Badge>
+            <button
+              onClick={() => setShowIdentical(!showIdentical)}
+              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <CheckCheck className="h-2.5 w-2.5" />
+              {fileStats.identical} identical
+              {showIdentical ? <ChevronDown className="h-2.5 w-2.5" /> : <ChevronRight className="h-2.5 w-2.5" />}
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-1 gap-0 overflow-hidden">
+          <SplitPane label={`${fileDiff.project_a_name} (Vault)`} variant="a">
+            <div className="divide-y divide-border/40">
+              {fileStats.aOnly > 0 && (
+                <SectionHeader
+                  icon={<Minus className="h-3 w-3 text-red-500" />}
+                  label={`Only in ${fileDiff.project_a_name}`}
+                  count={fileStats.aOnly}
+                  variant="removed"
+                />
+              )}
+              {Object.entries(fileDiff.only_in_a).map(([key, val]) => (
+                <DiffRow key={key} variant="removed">
+                  <span className="font-mono text-xs text-env-key">{key}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{val}</span>
+                </DiffRow>
+              ))}
+              {fileStats.changed > 0 && (
+                <SectionHeader
+                  icon={<Pencil className="h-3 w-3 text-amber-500" />}
+                  label="Changed values"
+                  count={fileStats.changed}
+                  variant="changed"
+                />
+              )}
+              {Object.entries(fileDiff.changed).map(([key, [valA]]) => (
+                <DiffRow key={key} variant="changed">
+                  <span className="font-mono text-xs text-env-key">{key}</span>
+                  <span className="font-mono text-xs text-amber-600 dark:text-amber-400">{valA}</span>
+                </DiffRow>
+              ))}
+              {fileStats.aOnly === 0 && fileStats.bOnly === 0 && fileStats.changed === 0 && (
+                <p className="p-4 text-xs text-muted-foreground">No differences — vault and file are identical</p>
+              )}
+              {fileStats.identical > 0 && showIdentical && (
+                <>
+                  <SectionHeader
+                    icon={<CheckCheck className="h-3 w-3 text-emerald-500" />}
+                    label="Identical"
+                    count={fileStats.identical}
+                    variant="identical"
+                  />
+                  {fileIdenticalKeys.map((key) => (
+                    <DiffRow key={key} variant="identical">
+                      <span className="font-mono text-xs text-env-key">{key}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{fileProjectData?.env_vars[key]}</span>
+                    </DiffRow>
+                  ))}
+                </>
+              )}
+            </div>
+          </SplitPane>
+          <div className="w-px shrink-0 bg-border" />
+          <SplitPane label={`${fileDiff.project_b_name} (File)`} variant="b">
+            <div className="divide-y divide-border/40">
+              {fileStats.bOnly > 0 && (
+                <SectionHeader
+                  icon={<Plus className="h-3 w-3 text-emerald-500" />}
+                  label={`Only in ${fileDiff.project_b_name}`}
+                  count={fileStats.bOnly}
+                  variant="added"
+                />
+              )}
+              {Object.entries(fileDiff.only_in_b).map(([key, val]) => (
+                <DiffRow key={key} variant="added">
+                  <span className="font-mono text-xs text-env-key">{key}</span>
+                  <span className="font-mono text-xs text-emerald-600 dark:text-emerald-400">{val}</span>
+                </DiffRow>
+              ))}
+              {fileStats.changed > 0 && (
+                <SectionHeader
+                  icon={<Pencil className="h-3 w-3 text-amber-500" />}
+                  label="Changed values"
+                  count={fileStats.changed}
+                  variant="changed"
+                />
+              )}
+              {Object.entries(fileDiff.changed).map(([key, [, valB]]) => (
+                <DiffRow key={key} variant="changed">
+                  <span className="font-mono text-xs text-env-key">{key}</span>
+                  <span className="font-mono text-xs text-amber-600 dark:text-amber-400">{valB}</span>
+                </DiffRow>
+              ))}
+              {fileStats.aOnly === 0 && fileStats.bOnly === 0 && fileStats.changed === 0 && (
+                <p className="p-4 text-xs text-muted-foreground">No differences — vault and file are identical</p>
+              )}
+              {fileStats.identical > 0 && showIdentical && (
+                <>
+                  <SectionHeader
+                    icon={<CheckCheck className="h-3 w-3 text-emerald-500" />}
+                    label="Identical"
+                    count={fileStats.identical}
+                    variant="identical"
+                  />
+                  {fileIdenticalKeys.map((key) => (
+                    <DiffRow key={key} variant="identical">
+                      <span className="font-mono text-xs text-env-key">{key}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{fileProjectData?.env_vars[key]}</span>
+                    </DiffRow>
+                  ))}
+                </>
+              )}
+            </div>
+          </SplitPane>
+        </div>
+      </div>
+    );
+  }
+
+  if (projects.length < 2 && !isFileMode) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center">

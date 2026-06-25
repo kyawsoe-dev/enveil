@@ -14,7 +14,7 @@ import {
 const shortcuts = [
   { group: 'Global', keys: [
     { key: '⌘K', desc: 'Search projects and env vars' },
-    { key: '⌘/', desc: 'Toggle this shortcut reference' },
+    { key: '⌘/', desc: 'Open this shortcut reference' },
     { key: 'Esc', desc: 'Close dialog / Deselect all' },
   ]},
   { group: 'Terminal', keys: [

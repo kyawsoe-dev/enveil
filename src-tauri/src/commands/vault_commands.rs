@@ -366,6 +366,110 @@ pub fn open_folder(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn open_in_terminal(path: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .args(["-a", "Terminal", &path])
+            .spawn()
+            .map_err(|e| format!("Failed to open terminal: {}", e))?;
+        return Ok(());
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("x-terminal-emulator")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open terminal: {}", e))?;
+        return Ok(());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", "start", "cmd", "/k", &format!("cd /d \"{}\"", &path)])
+            .spawn()
+            .map_err(|e| format!("Failed to open terminal: {}", e))?;
+        return Ok(());
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    Err("Unsupported platform".into())
+}
+
+#[tauri::command]
+pub fn generate_env_example(
+    state: tauri::State<AppState>,
+    project_id: String,
+    output_path: Option<String>,
+) -> Result<String, String> {
+    let inner = state.0.lock().map_err(|e| e.to_string())?;
+    let vault = inner.as_ref().ok_or("Vault is not unlocked")?;
+    let project = vault
+        .find_project(&project_id)
+        .ok_or_else(|| format!("Project '{}' not found", project_id))?;
+
+    let content: String = project
+        .env_vars
+        .keys()
+        .map(|k| format!("{}={}", k, k))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    if let Some(ref path) = output_path {
+        if let Some(parent) = std::path::Path::new(path).parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        std::fs::write(path, &content).map_err(|e| format!("Failed to write file: {}", e))?;
+    }
+
+    Ok(content)
+}
+
+#[tauri::command]
+pub fn diff_project_with_file(
+    state: tauri::State<AppState>,
+    project_id: String,
+    file_path: String,
+) -> Result<DiffResult, String> {
+    let inner = state.0.lock().map_err(|e| e.to_string())?;
+    let vault = inner.as_ref().ok_or("Vault is not unlocked")?;
+    let project = vault
+        .find_project(&project_id)
+        .ok_or_else(|| format!("Project '{}' not found", project_id))?;
+
+    let content = std::fs::read_to_string(&file_path)
+        .map_err(|e| format!("Failed to read file: {}", e))?;
+
+    let file_vars: BTreeMap<String, String> = content
+        .lines()
+        .filter(|l| {
+            let t = l.trim();
+            !t.is_empty() && !t.starts_with('#') && t.contains('=')
+        })
+        .filter_map(|l| {
+            let eq = l.find('=')?;
+            let key = l[..eq].trim().to_string();
+            let val = l[eq + 1..].trim().to_string();
+            if key.is_empty() { None } else { Some((key, val)) }
+        })
+        .collect();
+
+    let file_name = std::path::Path::new(&file_path)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "file".to_string());
+
+    let file_project = Project {
+        id: String::new(),
+        name: file_name,
+        description: String::new(),
+        env_vars: file_vars,
+        share_password: None,
+    };
+
+    Ok(diff::diff_projects(project, &file_project))
+}
+
+#[tauri::command]
 pub fn cleanup_all_temp_envs(
     temp_state: tauri::State<TempEnvState>,
 ) -> Result<(), String> {

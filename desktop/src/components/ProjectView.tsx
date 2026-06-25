@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useVault } from './VaultProvider';
-import { Key, Lock, Unlock, Eye, EyeOff, FileText, Trash2, RefreshCw, ExternalLink, Loader2, ChevronDown, FolderOpen } from 'lucide-react';
+import { Key, Lock, Unlock, Eye, EyeOff, FileText, Trash2, RefreshCw, ExternalLink, Loader2, ChevronDown, FolderOpen, GitCompare, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import EnvTable from './EnvTable';
 import * as tauri from '@/lib/tauri';
 
 export default function ProjectView() {
-  const { state, saveProject } = useVault();
+  const { state, saveProject, runFileDiff } = useVault();
   const selected = state.vault?.projects.find((p) => p.id === state.selectedProjectId);
   const [editingSharePwd, setEditingSharePwd] = useState(false);
   const [sharePwdInput, setSharePwdInput] = useState('');
@@ -18,6 +18,7 @@ export default function ProjectView() {
   const [symlinkPath, setSymlinkPath] = useState<string | null>(null);
   const [loadingTempEnv, setLoadingTempEnv] = useState(false);
   const [envSuffix, setEnvSuffix] = useState('');
+  const [generatingExample, setGeneratingExample] = useState(false);
 
   const handleOpenFolder = async () => {
     if (!symlinkPath) return;
@@ -27,6 +28,17 @@ export default function ProjectView() {
       await tauri.openFolder(parent);
     } catch (err) {
       console.error('Failed to open folder:', err);
+    }
+  };
+
+  const handleOpenInTerminal = async () => {
+    if (!symlinkPath) return;
+    const parent = symlinkPath.replace(/[\\/]+$/, '').split(/[\\/]/).slice(0, -1).join('/');
+    if (!parent) return;
+    try {
+      await tauri.openInTerminal(parent);
+    } catch (err) {
+      console.error('Failed to open terminal:', err);
     }
   };
 
@@ -143,9 +155,46 @@ export default function ProjectView() {
     }
   };
 
+  const handleGenerateExample = async () => {
+    if (!selected) return;
+    setGeneratingExample(true);
+    try {
+      const content = await tauri.generateEnvExample(selected.id);
+      const { save } = await import('@tauri-apps/api/dialog');
+      const path = await save({
+        defaultPath: `.env.example`,
+        filters: [{ name: 'Env Example', extensions: ['example'] }],
+      });
+      if (path) {
+        await tauri.generateEnvExample(selected.id, path);
+      }
+    } catch (err) {
+      console.error('Failed to generate .env.example:', err);
+    } finally {
+      setGeneratingExample(false);
+    }
+  };
+
+  const handleDiffWithFile = async () => {
+    if (!selected) return;
+    try {
+      const { open } = await import('@tauri-apps/api/dialog');
+      const file = await open({
+        title: 'Select .env file to diff',
+        multiple: false,
+        filters: [{ name: 'Env Files', extensions: ['env', 'example'] }],
+      });
+      if (!file) return;
+      const filePath = String(file);
+      await runFileDiff(selected.id, filePath);
+    } catch (err) {
+      console.error('Failed to diff with file:', err);
+    }
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex items-center gap-4 border-b bg-muted/30 px-6 py-3">
+        <div className="flex items-center gap-4 border-b bg-muted/30 px-6 py-2">
         <div className="flex items-center gap-2">
           {hasSharePwd ? (
             <Lock className="h-4 w-4 text-amber-500" />
@@ -209,11 +258,11 @@ export default function ProjectView() {
         )}
       </div>
 
-        <div className="flex items-center gap-4 border-b bg-muted/30 px-6 py-2.5">
+      <div className="flex items-center gap-4 border-b bg-muted/30 px-6 py-2">
         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
         <div className="group relative">
-          <span className="text-xs font-medium text-muted-foreground cursor-default rounded-sm px-1 py-0.5 transition-colors hover:bg-muted">
-            Temporary .env
+          <span className="text-xs font-medium text-muted-foreground cursor-default rounded-sm py-0.5 transition-colors hover:bg-muted">
+            Generate Temporary .env
           </span>
           <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-0 z-50 mb-0.5 w-72 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
             ENVEIL writes your project's env vars to a temporary file (secure, 600 permissions) and creates a symlink in your project folder. The temp file is auto-updated when you edit vars, and deleted on vault lock.
@@ -233,36 +282,62 @@ export default function ProjectView() {
                 )}
               </div>
               <div className="group relative">
-                <Button variant="ghost" size="sm" className="h-6 text-xs px-2 gap-1" onClick={handleRegenerate} disabled={loadingTempEnv}>
+                <button
+                  onClick={handleRegenerate}
+                  disabled={loadingTempEnv}
+                  className="inline-flex items-center gap-1 rounded px-1.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                >
                   {loadingTempEnv ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                   Regenerate
-                </Button>
+                </button>
                 <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-56 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
-                  Re-writes the temp .env file with the latest vault data. This happens automatically after each edit — only use this button if you need to force a refresh.
+                  Re-writes the temp .env file with the latest vault data.
                 </div>
               </div>
               {symlinkPath && (
-                <div className="group relative">
-                  <button
-                    onClick={handleOpenFolder}
-                    className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                    title="Open in Finder"
-                  >
-                    <FolderOpen className="h-3.5 w-3.5" />
-                  </button>
-                  <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-44 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
-                    Open project folder in Finder
+                <>
+                  <div className="group relative">
+                    <button
+                      onClick={handleOpenFolder}
+                      className="inline-flex items-center gap-1 rounded px-1.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                      <FolderOpen className="h-3.5 w-3.5" />
+                      Finder
+                    </button>
+                    <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-44 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                      Open project folder in Finder
+                    </div>
                   </div>
-                </div>
+                  <div className="group relative">
+                    <button
+                      onClick={handleOpenInTerminal}
+                      className="inline-flex items-center gap-1 rounded px-1.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                      <Terminal className="h-3.5 w-3.5" />
+                      Terminal
+                    </button>
+                    <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-44 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                      Open project folder in Terminal
+                    </div>
+                  </div>
+                </>
               )}
-              <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-destructive hover:text-destructive gap-1" onClick={handleDeleteTempEnv}>
-                <Trash2 className="h-3 w-3" />
-                Unlink
-              </Button>
+              <div className="group relative">
+                <button
+                  onClick={handleDeleteTempEnv}
+                  className="inline-flex items-center gap-1 rounded px-1.5 py-1.5 text-[11px] font-medium text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Unlink
+                </button>
+                <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-44 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                  Remove the temp file and symlink
+                </div>
+              </div>
             </>
           ) : (
             <>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-1">
                 <div className="relative">
                     <select
                     value={envSuffix}
@@ -288,13 +363,47 @@ export default function ProjectView() {
                   .env{envSuffix ? `.${envSuffix}` : ''}
                 </span>
               </div>
-              <div className="group relative">
-                <Button variant="outline" size="sm" className="h-7 text-xs px-3 gap-1.5" onClick={() => handleGenerateTempEnv()} disabled={loadingTempEnv || Object.keys(selected?.env_vars ?? {}).length === 0}>
-                  {loadingTempEnv ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
-                  Generate &amp; Link
-                </Button>
-                <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-56 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
-                  Generates a secure temp .env file with a symlink in your chosen project folder.
+              <div className="ml-auto flex items-center gap-2">
+                <div className="group relative">
+                  <Button variant="outline" size="sm" className="h-7 text-xs px-3 gap-1.5" onClick={() => handleGenerateTempEnv()} disabled={loadingTempEnv || Object.keys(selected?.env_vars ?? {}).length === 0}>
+                    {loadingTempEnv ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                    Generate &amp; Link
+                  </Button>
+                  <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-56 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                    Generates a secure temp .env file with a symlink in your chosen project folder.
+                  </div>
+                </div>
+                <div className="w-px h-6 bg-border mx-1" />
+                <div className="group relative">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs px-3 gap-1.5"
+                    onClick={() => handleGenerateExample()}
+                    disabled={generatingExample || Object.keys(selected?.env_vars ?? {}).length === 0}
+                  >
+                    {generatingExample ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
+                    Generate .env.example
+                  </Button>
+                  <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-56 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                    Generate .env.example (key=key) then save.
+                  </div>
+                </div>
+                <div className="w-px h-6 bg-border mx-1" />
+                <div className="group relative">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs px-3 gap-1.5"
+                    onClick={handleDiffWithFile}
+                    disabled={Object.keys(selected?.env_vars ?? {}).length === 0}
+                  >
+                    <GitCompare className="h-3 w-3" />
+                    Compare with .env File
+                  </Button>
+                  <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-56 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                    Compare vault variables against a .env file on your machine.
+                  </div>
                 </div>
               </div>
             </>

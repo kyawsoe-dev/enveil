@@ -224,7 +224,7 @@ export default function MasterAuth() {
             </button>
           </div>
         )}
-        <p className="mt-5 text-center text-[10px] text-muted-foreground/40">
+        <p className="mt-5 text-center text-[10px]">
           v{APP_VERSION}
         </p>
       </motion.div>
