@@ -7,6 +7,8 @@ use std::sync::{Arc, Mutex};
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
 
 use serde::Serialize;
 use tauri::Manager;
@@ -86,6 +88,11 @@ pub fn unlock_vault(
             #[cfg(unix)]
             {
                 let _ = Command::new("kill")
+                    .arg("-9")
+                    .arg(format!("-{}", pid))
+                    .output();
+                let _ = Command::new("kill")
+                    .arg("-9")
                     .arg(pid.to_string())
                     .output();
             }
@@ -366,6 +373,7 @@ pub fn run_command_stream(
             .envs(&envs)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
+            .process_group(0)
             .spawn()
             .map_err(|e| format!("Failed to execute command: {}", e))?;
         child_pid = child.id();
@@ -453,6 +461,11 @@ pub fn stop_command(
         #[cfg(unix)]
         {
             let _ = Command::new("kill")
+                .arg("-9")
+                .arg(format!("-{}", pid))
+                .output();
+            let _ = Command::new("kill")
+                .arg("-9")
                 .arg(pid.to_string())
                 .output();
         }
