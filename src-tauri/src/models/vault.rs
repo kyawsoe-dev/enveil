@@ -45,6 +45,17 @@ pub struct Project {
     pub description: String,
     pub env_vars: BTreeMap<String, String>,
     pub share_password: Option<String>,
+    #[serde(default)]
+    pub run_cmd: Option<String>,
+    #[serde(default)]
+    pub history: Vec<EnvSnapshot>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvSnapshot {
+    pub timestamp: i64,
+    pub label: String,
+    pub env_vars: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

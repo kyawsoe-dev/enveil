@@ -2,13 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { listen } from '@tauri-apps/api/event';
 import {
   Terminal,
   Play,
   Square,
   AlertCircle,
   CheckCircle2,
-  Loader2,
   Eye,
   EyeOff,
   Trash2,
@@ -49,6 +49,7 @@ const HELP_TEXT = `Built-in Commands
 
   help, --help, -h     Show this help message
   clear, cls           Clear the terminal output
+  cd <dir>             Change working directory for this project
   env                  Print all injected environment variables
   printenv             Print all environment variables
   projects             List all vault projects
@@ -59,6 +60,10 @@ const HELP_TEXT = `Built-in Commands
 Usage
   Any command not listed above runs in the system shell with
   the selected project's environment variables injected.
+
+  • Click Stop to halt a running command
+  • If a command fails (e.g. port conflict), click Kill to
+    kill the orphaned process holding that port
 
 Examples (type these exactly)
   printenv                              List all injected env vars
@@ -71,6 +76,7 @@ Tips
   • ↑/↓ navigate suggestions when available, else cycle history
   • Tab instantly accepts and runs the selected suggestion
   • Ctrl+L clears the terminal output
+  • Locking the vault auto-stops any running command
 `;
 
 function ProjectSelector() {
@@ -110,7 +116,7 @@ function ProjectSelector() {
           setIsOpen(!isOpen);
         }}
         className={cn(
-          "h-7 gap-1.5 font-mono text-[11px] px-2.5",
+          "h-7 gap-1.5 font-mono text-[11px] px-2.5 max-w-[160px]",
           !selected
             ? "border-amber-500/50 bg-amber-500/5 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 hover:text-amber-600"
             : "text-muted-foreground hover:text-foreground"
@@ -124,7 +130,7 @@ function ProjectSelector() {
       </Button>
 
       {isOpen && (
-        <div className="absolute left-0 mt-1 z-50 w-52 rounded-md border bg-popover p-1 shadow-md">
+        <div className="absolute left-0 mt-1 z-50 w-44 rounded-md border bg-popover p-1 shadow-md">
           <Input
             placeholder="Search projects..."
             value={search}
@@ -163,7 +169,7 @@ function ProjectSelector() {
 }
 
 export default function TerminalRunner() {
-  const { state, selectProject, setView } = useVault();
+  const { state, selectProject, setView, setTerminalCommand } = useVault();
   const [command, setCommand] = useState('');
   const [status, setStatus] = useState<RunnerStatus>('idle');
   const [output, setOutput] = useState('');
@@ -177,6 +183,10 @@ export default function TerminalRunner() {
   const [suggestIdx, setSuggestIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const outputRef = useRef<HTMLPreElement>(null);
+  const handledPending = useRef(false);
+  const lastExitCode = useRef<number | null>(null);
+  const currentCmd = useRef('');
+  const stoppedByUser = useRef(false);
 
   const selected = state.vault?.projects.find((p) => p.id === state.selectedProjectId);
   const envVars = selected?.env_vars ?? {};
@@ -204,7 +214,73 @@ export default function TerminalRunner() {
     scrollToBottom();
   }, [output, scrollToBottom]);
 
-  const handleStop = () => {
+  useEffect(() => {
+    const unsubOutput = listen<{ stream: string; text: string; project_id: string }>('terminal:output', (event) => {
+      setOutput((prev) => prev + event.payload.text + '\n');
+    });
+    const unsubDone = listen<{ code: number | null; project_id: string }>('terminal:done', (event) => {
+      if (stoppedByUser.current) {
+        stoppedByUser.current = false;
+        return;
+      }
+      lastExitCode.current = event.payload.code;
+      const cmd = currentCmd.current;
+      const status: RunnerStatus = (event.payload.code === null || event.payload.code === 0) ? 'success' : 'error';
+      setStatus(status);
+      if (cmd) {
+        setHistory((prev) => [{ command: cmd, timestamp: Date.now(), status }, ...prev].slice(0, MAX_HISTORY));
+        currentCmd.current = '';
+      }
+    });
+    return () => {
+      unsubOutput.then((fn) => fn());
+      unsubDone.then((fn) => fn());
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!state.pendingTerminalCommand || handledPending.current) return;
+    handledPending.current = true;
+    const raw = state.pendingTerminalCommand;
+    const cmd = raw.replace(/^cd\s+\S+\s*&&\s*/, '');
+    setTerminalCommand(null);
+    setCommand(cmd);
+    setTimeout(() => {
+      handleRun(raw);
+    }, 50);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.pendingTerminalCommand]);
+
+  useEffect(() => {
+    if (state.terminalClearKey === 0) return;
+    setStatus('idle');
+    setOutput('');
+    setErrorMsg('');
+    setCommand('');
+    handledPending.current = false;
+    stoppedByUser.current = false;
+    currentCmd.current = '';
+    lastExitCode.current = null;
+  }, [state.terminalClearKey]);
+
+  const handleStop = async () => {
+    stoppedByUser.current = true;
+    currentCmd.current = '';
+    try {
+      await tauri.stopCommand();
+    } catch {
+      // process may already be dead
+    }
+    if (status === 'error') {
+      const portMatch = output.match(/:::(\d+)/) || output.match(/port\s*:?\s*(\d+)/i);
+      if (portMatch) {
+        try {
+          await tauri.killProcessOnPort(Number(portMatch[1]));
+        } catch {
+          // port kill failed
+        }
+      }
+    }
     setStatus('idle');
     setOutput((prev) => prev + '^C\n');
   };
@@ -304,12 +380,11 @@ export default function TerminalRunner() {
     if (handler) { runBuiltIn(handler); return; }
 
     setStatus('running');
+    currentCmd.current = cmd;
     try {
-      const result = await tauri.runCommand(cmd, selected.id);
-      setOutput((prev) => prev + result + '\n');
-      setStatus('success');
-      setHistory((prev) => [{ command: cmd, timestamp: Date.now(), status: 'success' as const }, ...prev].slice(0, MAX_HISTORY));
+      await tauri.runCommandStream(cmd, selected.id);
     } catch (err) {
+      currentCmd.current = '';
       const msg = String(err);
       setErrorMsg(msg);
       setOutput((prev) => prev + msg + '\n');
@@ -460,15 +535,8 @@ export default function TerminalRunner() {
             }
             className="gap-1.5"
           >
-            <AnimatePresence mode="wait">
-              {status === 'running' && (
-                <motion.div key="spinner" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                </motion.div>
-              )}
-              {status === 'success' && <CheckCircle2 className="h-3 w-3" />}
-              {status === 'error' && <AlertCircle className="h-3 w-3" />}
-            </AnimatePresence>
+            {status === 'success' && <CheckCircle2 className="h-3 w-3" />}
+            {status === 'error' && <AlertCircle className="h-3 w-3" />}
             {status === 'idle' && 'Idle'}
             {status === 'running' && 'Running'}
             {status === 'success' && 'Completed'}
@@ -515,10 +583,10 @@ export default function TerminalRunner() {
           </AnimatePresence>
         </div>
 
-        {status === 'running' ? (
+        {status === 'running' || status === 'error' ? (
           <Button variant="destructive" size="sm" onClick={handleStop} className="h-8 gap-1.5">
             <Square className="h-3.5 w-3.5" />
-            Stop
+            {status === 'running' ? 'Stop' : 'Kill'}
           </Button>
         ) : (
           <Button size="sm" onClick={() => { setSuggestIdx(-1); handleRun(); }} className="h-8 gap-1.5" disabled={!command.trim() || !selected}>

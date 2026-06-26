@@ -9,6 +9,14 @@ export interface Project {
   description: string;
   env_vars: Record<string, string>;
   share_password?: string | null;
+  run_cmd?: string | null;
+  history?: EnvSnapshot[];
+}
+
+export interface EnvSnapshot {
+  timestamp: number;
+  label: string;
+  env_vars: Record<string, string>;
 }
 
 export interface DiffResult {

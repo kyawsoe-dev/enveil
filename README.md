@@ -41,17 +41,23 @@ This removes the quarantine attribute. Then open the app normally.
 ## Features
 
 | Feature | Description |
-|---|---|
+|---|---|---|
 | **Encrypted Vault** | Master password → Argon2id → ChaCha20Poly1305 encrypted `vault.bin` on disk |
 | **Project CRUD** | Create, edit, rename, delete projects (each with a key-value env map) |
 | **Inline Env Editing** | Add, edit, bulk import, and delete env vars per project |
-| **Export** | Export project env vars as `.env` file via native Tauri save dialog |
-| **Project Diff** | Side-by-side comparison of any two projects (keys only in A / only in B / changed) |
-| **Terminal Runner** | Run shell commands with decrypted env vars injected scoped to the child process |
+| **Multi-Select Bulk Ops** | Checkbox column + Shift-click range selection + floating action bar for batch delete/copy |
+| **Export / Copy All** | Export project env vars as `.env` file; one-click Copy All button |
+| **Project Diff** | Side-by-side comparison of any two projects or against a `.env` file |
+| **Terminal Runner** | Run shell commands with decrypted env vars injected — streaming output, Stop, Kill by port, command history, per-project cwd |
+| **Project Run Command** | Save a run command per project (e.g. `npm start`) and launch it from the linked toolbar with one click |
+| **Env Var Version History** | Auto-snapshots on every save; browse history with side-by-side preview diff; restore any snapshot |
 | **Dashboard Analytics** | Stats cards + bar chart ranking projects by env var count |
 | **Search** | Cmd+K search across project names, env keys, and env values |
+| **Drag & Drop Import** | Drop `.env` files or paste `KEY=VALUE` content onto the env table; conflict dialog for existing keys |
+| **Open Folder / Terminal** | Open a project's linked folder in Finder and Terminal with one click |
+| **.env.example Generation** | Generate a `.env.example` file from the current project's env var keys |
 | **Change Password** | Re-encrypts entire vault with a new master password |
-| **Auto-Lock** | Lock vault after configurable inactivity timeout |
+| **Auto-Lock** | Lock vault after configurable inactivity timeout; running processes auto-stop on lock |
 | **Reset Vault** | Securely wipe the entire vault and all projects |
 | **Temp .env File** | Generate a secure (600 perms) temporary `.env` file in `/tmp`, symlinked into your project folder. Auto-updated on edit, auto-deleted on vault lock |
 | **LAN Sync** | Share projects with teammates on the same local network with per-project share passwords for download authorization |
@@ -76,7 +82,7 @@ This removes the quarantine attribute. Then open the app normally.
 ┌──────────────▼───────────────────┐
 │         Rust Core (Tauri)        │
 │  ┌────────────────────────────┐  │
-│  │  22 tauri::commands          │  │
+│  │  31 tauri::commands          │  │
 │  └──────────┬─────────────────┘  │
 │  ┌──────────▼─────────────────┐  │
 │  │  Vault in memory (plain)   │  │
@@ -108,7 +114,7 @@ flowchart TD
     end
 
     subgraph Rust["Rust Core (Tauri v1)"]
-        CMD[22 tauri::commands]
+        CMD[31 tauri::commands]
         VAULT[Vault in Memory<br/><i>plaintext</i>]
         CRYPTO[Argon2id → ChaCha20Poly1305]
         CMD --> VAULT
@@ -210,7 +216,7 @@ flowchart TD
 │   │   │   └── VaultProvider.tsx     React context (state + dispatch)
 │   │   ├── lib/
 │   │   │   ├── brand.ts              App name, logo paths, brand font class
-│   │   │   ├── tauri.ts              invoke wrappers (22 commands)
+│   │   │   ├── tauri.ts              invoke wrappers (31 commands)
 │   │   │   ├── types.ts              TS interfaces (Vault, Project, DiffResult…)
 │   │   │   └── utils.ts              cn() helper
 │   │   ├── global.d.ts               *.css module declaration
@@ -266,18 +272,27 @@ All commands return `Result<T, String>` for frontend consumption.
 | `save_project` | `password: String, project: Project` | `()` |
 | `delete_project` | `password: String, project_id: String` | `()` |
 | `diff_projects` | `project_a_id: String, project_b_id: String` | `DiffResult` |
+| `diff_project_with_file` | `project_id: String, file_path: String` | `DiffResult` |
 | `run_command` | `command: String, project_id: String` | `String` (stdout + stderr) |
+| `run_command_stream` | `command: String, project_id: String` | `()` (emits `terminal:output` / `terminal:done` events) |
+| `stop_command` | — | `()` |
+| `kill_process_on_port` | `port: u16` | `()` |
 | `vault_exists` | — | `bool` |
 | `change_password` | `old_password: String, new_password: String` | `()` |
 | `get_vault` | — | `Option<Vault>` |
 | `reset_vault` | — | `()` |
+| `open_folder` | `path: String` | `()` |
+| `open_in_terminal` | `path: String` | `()` |
+| `generate_env_example` | `project_id: String, password: String` | `String` (file path) |
+| `get_project_history` | `project_id: String` | `Vec<EnvSnapshot>` |
+| `restore_snapshot` | `project_id: String, snapshot_index: number, password: String` | `()` |
 | `start_lan_sync` | — | `()` |
 | `stop_lan_sync` | — | `()` |
 | `get_sync_status` | — | `SyncState` |
 | `get_peers` | — | `Vec<PeerInfo>` |
 | `get_peer_projects` | `peerDeviceName: String` | `Vec<ProjectSummary>` |
 | `sync_project_from_peer` | `peerDeviceName: String, projectId: String, password: String, sharePassword: String` | `Project` |
- | `set_device_name` | `name: String` | `()` |
+| `set_device_name` | `name: String` | `()` |
 | `generate_temp_env` | `projectId: String, symlinkPath: String?` | `String` (temp file path) |
 | `regenerate_temp_env` | `projectId: String` | `()` |
 | `delete_temp_env` | `projectId: String` | `()` |
@@ -298,6 +313,14 @@ pub struct Project {
     pub description: String,
     pub env_vars: BTreeMap<String, String>,
     pub share_password: Option<String>,  // Optional password for LAN sync downloads
+    pub history: Vec<EnvSnapshot>,       // Auto-snapshotted on every save (capped at 50)
+    pub run_cmd: Option<String>,         // Saved run command for Terminal (e.g. "npm start")
+}
+
+pub struct EnvSnapshot {
+    pub timestamp: i64,
+    pub label: String,
+    pub env_vars: BTreeMap<String, String>,
 }
 
 pub struct SecurePayload {

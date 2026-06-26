@@ -27,6 +27,8 @@ interface VaultState {
   fileDiffFilePath: string | null;
   isLoading: boolean;
   error: string | null;
+  pendingTerminalCommand: string | null;
+  terminalClearKey: number;
 }
 
 type Action =
@@ -42,7 +44,9 @@ type Action =
   | { type: 'CLEAR_FILE_DIFF' }
   | { type: 'CLEAR_DIFF' }
   | { type: 'SET_ERROR'; error: string | null }
-  | { type: 'SET_LOADING'; isLoading: boolean };
+  | { type: 'SET_LOADING'; isLoading: boolean }
+  | { type: 'SET_TERMINAL_CMD'; command: string | null }
+  | { type: 'CLEAR_TERMINAL' };
 
 const initialState: VaultState = {
   isUnlocked: false,
@@ -57,6 +61,8 @@ const initialState: VaultState = {
   fileDiffFilePath: null,
   isLoading: false,
   error: null,
+  pendingTerminalCommand: null,
+  terminalClearKey: 0,
 };
 
 function reducer(state: VaultState, action: Action): VaultState {
@@ -72,6 +78,8 @@ function reducer(state: VaultState, action: Action): VaultState {
         isLoading: false,
         error: null,
         selectedProjectId: null,
+        pendingTerminalCommand: null,
+        terminalClearKey: state.terminalClearKey + 1,
       };
     case 'LOCK':
       return { ...initialState };
@@ -95,6 +103,10 @@ function reducer(state: VaultState, action: Action): VaultState {
       return { ...state, error: action.error, isLoading: false };
     case 'SET_LOADING':
       return { ...state, isLoading: action.isLoading };
+    case 'SET_TERMINAL_CMD':
+      return { ...state, pendingTerminalCommand: action.command };
+    case 'CLEAR_TERMINAL':
+      return { ...state, terminalClearKey: state.terminalClearKey + 1, pendingTerminalCommand: null };
     default:
       return state;
   }
@@ -119,6 +131,7 @@ interface VaultContextValue {
   clipboardTimeout: number;
   changeClipboardTimeout: (seconds: number) => void;
   refreshVault: () => Promise<void>;
+  setTerminalCommand: (command: string | null) => void;
 }
 
 const VaultContext = createContext<VaultContextValue | null>(null);
@@ -150,6 +163,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const lock = useCallback(() => {
+    tauri.stopCommand().catch(() => {});
     tauri.cleanupAllTempEnvs().catch(() => {});
     dispatch({ type: 'LOCK' });
   }, []);
@@ -321,6 +335,10 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setTerminalCommand = useCallback((command: string | null) => {
+    dispatch({ type: 'SET_TERMINAL_CMD', command });
+  }, []);
+
   const runDiff = useCallback(async (a: string, b: string) => {
     dispatch({ type: 'SET_DIFF', a, b });
     try {
@@ -365,6 +383,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       clipboardTimeout,
       changeClipboardTimeout,
       refreshVault,
+      setTerminalCommand,
     }),
     [
       state,
@@ -385,6 +404,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       clipboardTimeout,
       changeClipboardTimeout,
       refreshVault,
+      setTerminalCommand,
     ],
   );
 

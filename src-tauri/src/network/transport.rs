@@ -229,6 +229,8 @@ pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Res
                 description,
                 env_vars,
                 share_password: None,
+                run_cmd: None,
+                history: Vec::new(),
             })
         }
         SyncMessage::EncryptedProjectResponse {

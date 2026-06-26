@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/tauri';
-import type { DiffResult, Project, Vault } from './types';
+import type { DiffResult, EnvSnapshot, Project, Vault } from './types';
 
 export async function unlockVault(password: string): Promise<Vault> {
   return invoke<Vault>('unlock_vault', { password });
@@ -89,4 +89,28 @@ export async function diffProjectWithFile(
   filePath: string,
 ): Promise<DiffResult> {
   return invoke<DiffResult>('diff_project_with_file', { projectId, filePath });
+}
+
+export async function runCommandStream(command: string, projectId: string): Promise<void> {
+  return invoke<void>('run_command_stream', { command, projectId });
+}
+
+export async function stopCommand(): Promise<void> {
+  return invoke<void>('stop_command');
+}
+
+export async function killProcessOnPort(port: number): Promise<void> {
+  return invoke<void>('kill_process_on_port', { port });
+}
+
+export async function getProjectHistory(projectId: string): Promise<EnvSnapshot[]> {
+  return invoke<EnvSnapshot[]>('get_project_history', { projectId });
+}
+
+export async function restoreSnapshot(
+  projectId: string,
+  snapshotIndex: number,
+  password: string,
+): Promise<void> {
+  return invoke<void>('restore_snapshot', { projectId, snapshotIndex, password });
 }

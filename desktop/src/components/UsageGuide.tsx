@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi, Copy, FileText, ExternalLink, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi, Copy, FileText, ExternalLink, RefreshCw, Trash2, Upload, FolderOpen, CheckSquare, History, FileOutput } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -62,7 +62,10 @@ export default function UsageGuide() {
               <Terminal className="h-3.5 w-3.5 text-primary" /> Run Commands
             </h3>
             <p className="text-muted-foreground">
-              Switch to the <strong>Terminal</strong> view. Select a project and enter a command (e.g. <code className="text-xs bg-muted px-1 rounded">printenv</code>). {APP_NAME} injects the project's env vars into the process.
+              Switch to the <strong>Terminal</strong> view. Select a project and enter a command (e.g. <code className="text-xs bg-muted px-1 rounded">printenv</code>). {APP_NAME} injects the project's env vars into the process. Output streams in real time — click <strong>Stop</strong> to halt a running command.
+            </p>
+            <p className="text-muted-foreground mt-2">
+              If a command fails (e.g. port conflict), the button changes to <strong>Kill</strong> — click it to kill the orphaned process holding that port. Use <code className="text-xs bg-muted px-1 rounded">cd &lt;dir&gt;</code> as a built-in to change the working directory for subsequent commands.
             </p>
             <p className="text-muted-foreground mt-2">
               Press <kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">↑</kbd><kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">↓</kbd> to cycle through command history, or <kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">Ctrl+L</kbd> to clear output.
@@ -119,7 +122,7 @@ export default function UsageGuide() {
               <Lock className="h-3.5 w-3.5 text-primary" /> Security
             </h3>
             <p className="text-muted-foreground">
-              Your vault is encrypted with <strong>Argon2id</strong> + <strong>ChaCha20Poly1305</strong> and stored locally. Click <strong>Lock Vault</strong> in the sidebar to lock it. Close the app to auto-lock.
+              Your vault is encrypted with <strong>Argon2id</strong> + <strong>ChaCha20Poly1305</strong> and stored locally. Click <strong>Lock Vault</strong> in the sidebar to lock it — any running terminal process is automatically stopped. Close the app to auto-lock.
             </p>
           </section>
 
@@ -132,6 +135,75 @@ export default function UsageGuide() {
             </p>
             <p className="text-muted-foreground mt-2">
               The temp file auto-updates when you edit env vars — no manual refresh needed. Use <strong>Regenerate</strong> to force a refresh, or <strong>Unlink</strong> to remove the symlink and temp file. All temp files are automatically deleted when you lock the vault.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <Terminal className="h-3.5 w-3.5 text-primary" /> Run Project Command
+            </h3>
+            <p className="text-muted-foreground">
+              Once a project is <strong>Linked</strong> (has a temp .env symlink), the toolbar shows a command bar with the project directory and a <strong>Play</strong> button. Click the command label to set a run command (e.g. <code className="text-xs bg-muted px-1 rounded">npm run dev</code>, <code className="text-xs bg-muted px-1 rounded">npm start</code>, <code className="text-xs bg-muted px-1 rounded">python3 app.py</code>).
+            </p>
+            <p className="text-muted-foreground mt-2">
+              Click <strong>Play</strong> to run that command in the linked project directory with all vault env vars injected. The terminal opens automatically and shows live streaming output. The command is saved to the project — it persists across sessions.
+            </p>
+            <p className="text-muted-foreground mt-2">
+              Example: if your symlink is at <code className="text-xs bg-muted px-1 rounded">/Users/me/my-project/.env</code>, the command runs from <code className="text-xs bg-muted px-1 rounded">/Users/me/my-project/</code> with env vars injected, just like having a real <code className="text-xs bg-muted px-1 rounded">.env</code> file in the folder.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <CheckSquare className="h-3.5 w-3.5 text-primary" /> Multi-Select Bulk Operations
+            </h3>
+            <p className="text-muted-foreground">
+              Click the checkbox next to a variable to select it. <kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">Shift+Click</kbd> to select a range. The floating action bar appears at the top of the table — delete or copy selected variables in one click. Press <kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">Esc</kbd> to clear all selections.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <FolderOpen className="h-3.5 w-3.5 text-primary" /> Open Folder & Terminal
+            </h3>
+            <p className="text-muted-foreground">
+              When a project is <strong>Linked</strong> (has a temp .env symlink), the toolbar shows <strong>Finder</strong> and <strong>Terminal</strong> buttons. Click <strong>Finder</strong> to reveal the project folder. Click <strong>Terminal</strong> to open a system terminal in that directory.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <FileOutput className="h-3.5 w-3.5 text-primary" /> .env.example Generation
+            </h3>
+            <p className="text-muted-foreground">
+              Click the <strong>Generate .env.example</strong> outline button (right side of the toolbar) to create a <code className="text-xs bg-muted px-1 rounded">.env.example</code> file from the current project's env var keys. A native save dialog lets you choose the location.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <History className="h-3.5 w-3.5 text-primary" /> Env Var Version History
+            </h3>
+            <p className="text-muted-foreground">
+              Every time you save a project, a snapshot is automatically created. Click the <strong>History</strong> button (clock icon) in the project toolbar to open the history panel. Browse snapshots (newest first), preview exact changes (added / removed / changed / unchanged), and click <strong>Confirm Restore</strong> to revert to any snapshot. The panel is resizable — drag the left edge to adjust its width.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <GitCompare className="h-3.5 w-3.5 text-primary" /> Compare with .env File
+            </h3>
+            <p className="text-muted-foreground">
+              Click <strong>Compare with .env File</strong> (right side of the toolbar) to diff the current project's env vars against an external <code className="text-xs bg-muted px-1 rounded">.env</code> file on disk. A native open dialog lets you pick the file. The diff view shows added, removed, and changed keys. Click <strong>Apply</strong> to overwrite the project's vars with the file's values, or <strong>Exit</strong> to discard.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <Copy className="h-3.5 w-3.5 text-primary" /> Copy All Variables
+            </h3>
+            <p className="text-muted-foreground">
+              Click the <strong>Copy All</strong> ghost button next to <strong>Show All</strong> in the env table header to copy all env vars as <code className="text-xs bg-muted px-1 rounded">KEY=VALUE</code> lines to your clipboard. The button shows a green checkmark briefly as confirmation.
             </p>
           </section>
 

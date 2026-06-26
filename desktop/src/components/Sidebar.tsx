@@ -189,7 +189,7 @@ export default function Sidebar({
           icon={<Terminal className="h-4 w-4" />}
           label="Terminal"
           active={state.activeView === "terminal"}
-          onClick={() => { selectProject(null); setView("terminal"); }}
+          onClick={() => { setView("terminal"); }}
         />
         <NavButton
           icon={

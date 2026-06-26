@@ -2,4 +2,4 @@ pub mod diff;
 pub mod vault;
 
 pub use diff::DiffResult;
-pub use vault::{Project, SecurePayload, Vault};
+pub use vault::{EnvSnapshot, Project, SecurePayload, Vault};

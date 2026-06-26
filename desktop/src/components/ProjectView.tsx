@@ -2,14 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useVault } from './VaultProvider';
-import { Key, Lock, Unlock, Eye, EyeOff, FileText, Trash2, RefreshCw, ExternalLink, Loader2, ChevronDown, FolderOpen, GitCompare, Terminal } from 'lucide-react';
+import { Key, Lock, Unlock, Eye, EyeOff, FileText, Trash2, RefreshCw, ExternalLink, Loader2, ChevronDown, FolderOpen, GitCompare, Terminal, History, Play, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import EnvTable from './EnvTable';
+import HistoryPanel from './HistoryPanel';
 import * as tauri from '@/lib/tauri';
 
 export default function ProjectView() {
-  const { state, saveProject, runFileDiff } = useVault();
+  const { state, saveProject, runFileDiff, setView, setTerminalCommand } = useVault();
   const selected = state.vault?.projects.find((p) => p.id === state.selectedProjectId);
   const [editingSharePwd, setEditingSharePwd] = useState(false);
   const [sharePwdInput, setSharePwdInput] = useState('');
@@ -19,6 +21,12 @@ export default function ProjectView() {
   const [loadingTempEnv, setLoadingTempEnv] = useState(false);
   const [envSuffix, setEnvSuffix] = useState('');
   const [generatingExample, setGeneratingExample] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [runCmdEditing, setRunCmdEditing] = useState(false);
+  const [runCmdInput, setRunCmdInput] = useState('');
+  const [runningCmd, setRunningCmd] = useState(false);
+
+  const runCmd = selected?.run_cmd || '';
 
   const handleOpenFolder = async () => {
     if (!symlinkPath) return;
@@ -153,6 +161,21 @@ export default function ProjectView() {
     } catch (err) {
       console.error('Failed to delete temp .env:', err);
     }
+  };
+
+  const saveRunCmd = async (cmd: string) => {
+    if (!selected) return;
+    const updated = { ...selected, run_cmd: cmd.trim() || null };
+    await saveProject(updated);
+    setRunCmdEditing(false);
+  };
+
+  const handleRunProject = async () => {
+    if (!selected || !symlinkPath || !runCmd.trim()) return;
+    const parent = symlinkPath.replace(/[\\/]+$/, '').split(/[\\/]/).slice(0, -1).join('/');
+    if (!parent) return;
+    setTerminalCommand(`cd ${parent} && ${runCmd.trim()}`);
+    setView('terminal');
   };
 
   const handleGenerateExample = async () => {
@@ -320,6 +343,58 @@ export default function ProjectView() {
                       Open project folder in Terminal
                     </div>
                   </div>
+                  <div className="flex items-center gap-1 rounded border border-border/50 px-1.5 py-1 bg-background/50">
+                    {runCmdEditing ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={runCmdInput}
+                          onChange={(e) => setRunCmdInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { saveRunCmd(runCmdInput); }
+                            if (e.key === 'Escape') { setRunCmdEditing(false); }
+                          }}
+                          className="h-6 w-40 bg-transparent text-[11px] font-mono outline-none text-foreground"
+                          placeholder="npm run dev"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => saveRunCmd(runCmdInput)}
+                          className="flex h-5 w-5 items-center justify-center rounded text-emerald-500 hover:bg-accent transition-colors"
+                          title="Save command"
+                        >
+                          <Check className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => setRunCmdEditing(false)}
+                          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          title="Cancel"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={handleRunProject}
+                          disabled={!runCmd.trim()}
+                          className="flex h-5 w-5 items-center justify-center rounded text-emerald-500 hover:bg-accent disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                          title={runCmd.trim() ? `Run: ${runCmd.trim()}` : 'Set a command first'}
+                        >
+                          <Play className="h-3 w-3" />
+                        </button>
+                        <div className="w-px h-4 bg-border mx-0.5" />
+                        <button
+                          onClick={() => { setRunCmdInput(runCmd); setRunCmdEditing(true); }}
+                          className="group/cmd flex items-center gap-1 max-w-[140px]"
+                        >
+                          <code className="text-[10px] font-mono text-muted-foreground truncate group-hover/cmd:text-foreground transition-colors">
+                            {runCmd.trim() || 'Set command...'}
+                          </code>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
               <div className="group relative">
@@ -405,13 +480,33 @@ export default function ProjectView() {
                     Compare vault variables against a .env file on your machine.
                   </div>
                 </div>
+                <div className="w-px h-6 bg-border mx-1" />
+                <div className="group relative">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn("h-7 text-xs px-3 gap-1.5", showHistory && "bg-accent text-accent-foreground")}
+                    onClick={() => setShowHistory(!showHistory)}
+                  >
+                    <History className="h-3 w-3" />
+                    History
+                  </Button>
+                  <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-44 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                    View and restore previous versions
+                  </div>
+                </div>
               </div>
             </>
           )}
         </div>
       </div>
 
-      <EnvTable />
+      <div className="flex min-h-0 flex-1">
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <EnvTable />
+        </div>
+        <HistoryPanel open={showHistory} onClose={() => setShowHistory(false)} />
+      </div>
     </div>
   );
 }

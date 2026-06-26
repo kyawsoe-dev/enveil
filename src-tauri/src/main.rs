@@ -8,7 +8,7 @@ mod network;
 mod storage;
 
 use commands::sync_commands::SyncAppState;
-use commands::vault_commands::{AppState, TempEnvState};
+use commands::vault_commands::{AppState, TempEnvState, TerminalState};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -16,6 +16,7 @@ fn main() {
     tauri::Builder::default()
         .manage(AppState(Arc::new(Mutex::new(None))))
         .manage(TempEnvState(Mutex::new(HashMap::new())))
+        .manage(TerminalState::default())
         .manage(SyncAppState::new())
         .on_window_event(|event| {
             let drop_info = match event.event() {
@@ -42,6 +43,8 @@ fn main() {
             commands::vault_commands::save_project,
             commands::vault_commands::diff_projects,
             commands::vault_commands::run_command,
+            commands::vault_commands::run_command_stream,
+            commands::vault_commands::stop_command,
             commands::vault_commands::vault_exists,
             commands::vault_commands::change_password,
             commands::vault_commands::delete_project,
@@ -56,6 +59,9 @@ fn main() {
             commands::vault_commands::open_in_terminal,
             commands::vault_commands::generate_env_example,
             commands::vault_commands::diff_project_with_file,
+            commands::vault_commands::get_project_history,
+            commands::vault_commands::restore_snapshot,
+            commands::vault_commands::kill_process_on_port,
             commands::sync_commands::start_lan_sync,
             commands::sync_commands::stop_lan_sync,
             commands::sync_commands::get_peers,

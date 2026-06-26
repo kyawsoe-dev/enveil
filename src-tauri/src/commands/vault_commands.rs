@@ -1,17 +1,34 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fs::Permissions;
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
 use serde::Serialize;
+use tauri::Manager;
 
 use crate::error::VaultError;
 use crate::models::diff;
 use crate::models::{DiffResult, Project, Vault};
 use crate::storage::{delete_vault_file, load_vault, save_vault};
+
+pub struct TerminalState {
+    pub pid: Mutex<Option<u32>>,
+    pub cwds: Mutex<HashMap<String, PathBuf>>,
+}
+
+impl Default for TerminalState {
+    fn default() -> Self {
+        Self {
+            pid: Mutex::new(None),
+            cwds: Mutex::new(HashMap::new()),
+        }
+    }
+}
 
 pub struct AppState(pub Arc<Mutex<Option<Vault>>>);
 
@@ -48,6 +65,7 @@ pub fn initialize_vault(
 #[tauri::command]
 pub fn unlock_vault(
     state: tauri::State<AppState>,
+    terminal_state: tauri::State<TerminalState>,
     password: String,
 ) -> Result<Vault, String> {
     if password.is_empty() {
@@ -62,8 +80,30 @@ pub fn unlock_vault(
         other => other.to_string(),
     })?;
 
-    let mut inner = state.0.lock().map_err(|e| e.to_string())?;
-    *inner = Some(vault.clone());
+    {
+        let mut pid_guard = terminal_state.pid.lock().map_err(|e| e.to_string())?;
+        if let Some(pid) = pid_guard.take() {
+            #[cfg(unix)]
+            {
+                let _ = Command::new("kill")
+                    .arg(pid.to_string())
+                    .output();
+            }
+            #[cfg(windows)]
+            {
+                let _ = Command::new("taskkill")
+                    .arg("/F")
+                    .arg("/PID")
+                    .arg(pid.to_string())
+                    .output();
+            }
+        }
+    }
+
+    {
+        let mut inner = state.0.lock().map_err(|e| e.to_string())?;
+        *inner = Some(vault.clone());
+    }
     Ok(vault)
 }
 
@@ -90,10 +130,58 @@ pub fn save_project(
         "Vault is not unlocked. Call unlock_vault first.".to_string()
     })?;
 
-    vault.upsert_project(project);
+    if let Some(existing) = vault.find_project(&project.id) {
+        if existing.env_vars != project.env_vars {
+            let mut project_with_history = project;
+            let mut history = existing.history.clone();
+            let snapshot = crate::models::EnvSnapshot {
+                timestamp: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs() as i64,
+                label: format!("Before save on {}", chrono_now()),
+                env_vars: existing.env_vars.clone(),
+            };
+            history.push(snapshot);
+            if history.len() > 50 {
+                history.remove(0);
+            }
+            project_with_history.history = history;
+            vault.upsert_project(project_with_history);
+        } else {
+            vault.upsert_project(project);
+        }
+    } else {
+        vault.upsert_project(project);
+    }
     save_vault(vault, &password).map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+fn chrono_now() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        // Fallback: use a simple timestamp format
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let d = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+        format!("{}", d.as_secs())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Use the `date` command as a portable way to get formatted time
+        std::process::Command::new("date")
+            .arg("+%Y-%m-%d %H:%M:%S")
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| {
+                use std::time::{SystemTime, UNIX_EPOCH};
+                let d = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+                format!("{}", d.as_secs())
+            })
+    }
 }
 
 #[tauri::command]
@@ -206,6 +294,178 @@ pub fn run_command(
     }
 
     Ok(combined)
+}
+
+#[tauri::command]
+pub fn run_command_stream(
+    app_handle: tauri::AppHandle,
+    vault_state: tauri::State<AppState>,
+    terminal_state: tauri::State<TerminalState>,
+    command: String,
+    project_id: String,
+) -> Result<(), String> {
+    let window = app_handle.get_window("main").ok_or("Main window not found")?;
+    let envs = {
+        let inner = vault_state.0.lock().map_err(|e| e.to_string())?;
+        let vault = inner.as_ref().ok_or("Vault is not unlocked")?;
+        let project = vault
+            .find_project(&project_id)
+            .ok_or_else(|| format!("Project not found: {}", project_id))?;
+        project.env_vars.clone()
+    };
+
+    if command.starts_with("cd ") && !command.contains("&&") && !command.contains(';') && !command.contains('|') {
+        let dir = command.strip_prefix("cd ").unwrap().trim();
+        if dir.contains(' ') {
+            // Quoted path or complex arg — let shell handle it
+        } else {
+            let mut cwds = terminal_state.cwds.lock().map_err(|e| e.to_string())?;
+            let current = cwds.get(&project_id).cloned();
+            let new_cwd = match dir {
+            "~" | "~/" => {
+                std::env::var("HOME").map(PathBuf::from).unwrap_or_default()
+            }
+            "-" => {
+                current.as_ref().and_then(|p| p.parent()).map(|p| p.to_path_buf())
+                    .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+            }
+            _ if dir.starts_with('/') => PathBuf::from(dir),
+            ".." => {
+                current.as_ref().and_then(|p| p.parent()).map(|p| p.to_path_buf())
+                    .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+            }
+            _ => {
+                let base = current.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+                base.join(dir)
+            }
+        };
+        let resolved = std::fs::canonicalize(&new_cwd).unwrap_or(new_cwd);
+        cwds.insert(project_id.clone(), resolved.clone());
+        let _ = window.emit("terminal:done", serde_json::json!({
+            "code": 0,
+            "project_id": project_id,
+        }));
+        return Ok(());
+        }
+    }
+
+    let cwd = {
+        let cwds = terminal_state.cwds.lock().map_err(|e| e.to_string())?;
+        cwds.get(&project_id).cloned()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+    };
+
+    let mut child: std::process::Child;
+    let child_pid: u32;
+    #[cfg(unix)]
+    {
+        child = Command::new("sh")
+            .arg("-c")
+            .arg(&command)
+            .current_dir(&cwd)
+            .envs(&envs)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to execute command: {}", e))?;
+        child_pid = child.id();
+    }
+    #[cfg(windows)]
+    {
+        child = Command::new("cmd")
+            .args(["/C", &command])
+            .current_dir(&cwd)
+            .envs(&envs)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to execute command: {}", e))?;
+        child_pid = child.id();
+    }
+    {
+        let mut pid_guard = terminal_state.pid.lock().map_err(|e| e.to_string())?;
+        *pid_guard = Some(child_pid);
+    }
+
+    let window_out = window.clone();
+    let pid_out = project_id.clone();
+
+    std::thread::spawn(move || {
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+
+        let win_err = window_out.clone();
+        let pid_err = pid_out.clone();
+
+        let err_handle = std::thread::spawn(move || {
+            if let Some(stderr) = stderr {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines() {
+                    if let Ok(text) = line {
+                        let _ = win_err.emit("terminal:output", serde_json::json!({
+                            "stream": "stderr",
+                            "text": text,
+                            "project_id": pid_err,
+                        }));
+                    }
+                }
+            }
+        });
+
+        if let Some(stdout) = stdout {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                if let Ok(text) = line {
+                    let _ = window_out.emit("terminal:output", serde_json::json!({
+                        "stream": "stdout",
+                        "text": text,
+                        "project_id": pid_out.clone(),
+                    }));
+                }
+            }
+        }
+
+        let _ = err_handle.join();
+
+        let status = child.wait();
+        let _ = window_out.emit("terminal:done", serde_json::json!({
+            "code": status.ok().and_then(|s| s.code()),
+            "project_id": pid_out.clone(),
+        }));
+
+        if let Ok(mut pid_guard) = app_handle.state::<TerminalState>().pid.lock() {
+            *pid_guard = None;
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn stop_command(
+    terminal_state: tauri::State<TerminalState>,
+) -> Result<(), String> {
+    let pid = {
+        let mut pid_guard = terminal_state.pid.lock().map_err(|e| e.to_string())?;
+        pid_guard.take()
+    };
+    if let Some(pid) = pid {
+        #[cfg(unix)]
+        {
+            let _ = Command::new("kill")
+                .arg(pid.to_string())
+                .output();
+        }
+        #[cfg(windows)]
+        {
+            let _ = Command::new("taskkill")
+                .arg("/F")
+                .arg("/PID")
+                .arg(pid.to_string())
+                .output();
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -464,6 +724,8 @@ pub fn diff_project_with_file(
         description: String::new(),
         env_vars: file_vars,
         share_password: None,
+        run_cmd: None,
+        history: Vec::new(),
     };
 
     Ok(diff::diff_projects(project, &file_project))
@@ -482,6 +744,99 @@ pub fn cleanup_all_temp_envs(
         }
         if info.temp_dir.exists() {
             std::fs::remove_dir_all(&info.temp_dir).ok();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_project_history(
+    state: tauri::State<AppState>,
+    project_id: String,
+) -> Result<Vec<crate::models::EnvSnapshot>, String> {
+    let inner = state.0.lock().map_err(|e| e.to_string())?;
+    let vault = inner.as_ref().ok_or("Vault is not unlocked")?;
+    let project = vault
+        .find_project(&project_id)
+        .ok_or_else(|| format!("Project '{}' not found", project_id))?;
+    Ok(project.history.clone())
+}
+
+#[tauri::command]
+pub fn restore_snapshot(
+    state: tauri::State<AppState>,
+    password: String,
+    project_id: String,
+    snapshot_index: usize,
+) -> Result<(), String> {
+    if password.is_empty() {
+        return Err("Password must not be empty".into());
+    }
+
+    let mut inner = state.0.lock().map_err(|e| e.to_string())?;
+    let vault = inner.as_mut().ok_or_else(|| {
+        "Vault is not unlocked. Call unlock_vault first.".to_string()
+    })?;
+
+    let project = vault
+        .find_project_mut(&project_id)
+        .ok_or_else(|| format!("Project '{}' not found", project_id))?;
+
+    if snapshot_index >= project.history.len() {
+        return Err("Snapshot index out of range".into());
+    }
+
+    let snapshot = project.history[snapshot_index].clone();
+    let current_vars = project.env_vars.clone();
+
+    let new_snapshot = crate::models::EnvSnapshot {
+        timestamp: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64,
+        label: format!("Before restore on {}", chrono_now()),
+        env_vars: current_vars,
+    };
+    project.history.push(new_snapshot);
+    if project.history.len() > 50 {
+        project.history.remove(0);
+    }
+
+    project.env_vars = snapshot.env_vars;
+    save_vault(vault, &password).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn kill_process_on_port(port: u16) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        let output = Command::new("sh")
+            .args(["-c", &format!("lsof -ti :{} 2>/dev/null", port)])
+            .output()
+            .map_err(|e| e.to_string())?;
+        let pids = String::from_utf8_lossy(&output.stdout);
+        for pid in pids.lines() {
+            if let Ok(pid) = pid.trim().parse::<u32>() {
+                let _ = Command::new("kill").arg("-9").arg(pid.to_string()).output();
+            }
+        }
+    }
+    #[cfg(windows)]
+    {
+        let output = Command::new("cmd")
+            .args(["/C", &format!("netstat -ano | findstr :{}", port)])
+            .output()
+            .map_err(|e| e.to_string())?;
+        let out = String::from_utf8_lossy(&output.stdout);
+        for line in out.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if let Some(pid_str) = parts.last() {
+                if let Ok(pid) = pid_str.parse::<u32>() {
+                    let _ = Command::new("taskkill").arg("/F").arg("/PID").arg(pid.to_string()).output();
+                }
+            }
         }
     }
     Ok(())
