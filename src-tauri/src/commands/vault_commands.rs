@@ -841,3 +841,55 @@ pub fn kill_process_on_port(port: u16) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[tauri::command]
+pub fn export_vault(
+    state: tauri::State<AppState>,
+    password: String,
+    output_path: String,
+) -> Result<(), String> {
+    let vault = {
+        let guard = state.0.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or("Vault is not unlocked")?
+    };
+    let payload = crate::crypto::encrypt_vault(&vault, &password).map_err(|e| e.to_string())?;
+    let data = serde_json::to_vec(&payload).map_err(|e| e.to_string())?;
+    std::fs::write(&output_path, data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn import_vault(
+    state: tauri::State<AppState>,
+    password: String,
+    input_path: String,
+    mode: String,
+) -> Result<(), String> {
+    let data = std::fs::read(&input_path).map_err(|e| e.to_string())?;
+    let payload: crate::models::SecurePayload =
+        serde_json::from_slice(&data).map_err(|e| e.to_string())?;
+    let imported =
+        crate::crypto::decrypt_vault(&payload, &password).map_err(|e| e.to_string())?;
+
+    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+    let vault = guard.as_mut().ok_or("Vault is not unlocked")?;
+
+    match mode.as_str() {
+        "replace" => {
+            *vault = imported;
+        }
+        "merge" => {
+            let existing_ids: std::collections::HashSet<String> =
+                vault.projects.iter().map(|p| p.id.clone()).collect();
+            for project in imported.projects {
+                if !existing_ids.contains(&project.id) {
+                    vault.projects.push(project);
+                }
+            }
+        }
+        _ => return Err("Invalid mode. Use 'replace' or 'merge'.".into()),
+    }
+
+    save_vault(vault, &password).map_err(|e| e.to_string())?;
+    Ok(())
+}

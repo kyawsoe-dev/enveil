@@ -114,3 +114,11 @@ export async function restoreSnapshot(
 ): Promise<void> {
   return invoke<void>('restore_snapshot', { projectId, snapshotIndex, password });
 }
+
+export async function exportVault(password: string, outputPath: string): Promise<void> {
+  return invoke<void>('export_vault', { password, outputPath });
+}
+
+export async function importVault(password: string, inputPath: string, mode: 'replace' | 'merge'): Promise<void> {
+  return invoke<void>('import_vault', { password, inputPath, mode });
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings, Shield, RefreshCw } from 'lucide-react';
+import { Settings, RefreshCw, Download, Upload, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,14 +12,22 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useVault } from './VaultProvider';
+import { useToast } from '@/hooks/use-toast';
 import ChangePasswordDialog from './ChangePasswordDialog';
 import ResetVaultDialog from './ResetVaultDialog';
+import * as tauri from '@/lib/tauri';
 
 export default function SettingsDialog() {
-  const { autoLockTimeout, changeAutoLockTimeout, clipboardTimeout, changeClipboardTimeout } = useVault();
+  const { state, autoLockTimeout, changeAutoLockTimeout, clipboardTimeout, changeClipboardTimeout } = useVault();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [restoreMode, setRestoreMode] = useState<'replace' | 'merge'>('replace');
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [restoreFilePath, setRestoreFilePath] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   const checkForUpdates = async () => {
     setChecking(true);
@@ -42,6 +50,54 @@ export default function SettingsDialog() {
       setTimeout(() => setUpdateStatus(null), 3000);
     } finally {
       setChecking(false);
+    }
+  };
+
+  const handleBackup = async () => {
+    setBackingUp(true);
+    try {
+      const { save } = await import('@tauri-apps/api/dialog');
+      const path = await save({
+        defaultPath: 'enveil-backup.vault',
+        filters: [{ name: 'ENVEIL Backup', extensions: ['vault'] }],
+      });
+      if (!path) return;
+      await tauri.exportVault(state.password, path as string);
+      toast({ title: 'Vault exported successfully' });
+    } catch (err) {
+      toast({ title: 'Backup failed', description: String(err), variant: 'destructive' });
+    } finally {
+      setBackingUp(false);
+    }
+  };
+
+  const handleSelectRestoreFile = async () => {
+    try {
+      const { open } = await import('@tauri-apps/api/dialog');
+      const path = await open({
+        filters: [{ name: 'ENVEIL Backup', extensions: ['vault'] }],
+        multiple: false,
+      });
+      if (!path) return;
+      setRestoreFilePath(path as string);
+      setShowRestoreConfirm(true);
+    } catch (err) {
+      toast({ title: 'Failed to open file', description: String(err), variant: 'destructive' });
+    }
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restoreFilePath) return;
+    setRestoring(true);
+    try {
+      await tauri.importVault(state.password, restoreFilePath, restoreMode);
+      toast({ title: restoreMode === 'replace' ? 'Vault replaced successfully' : 'Vault merged successfully' });
+      setShowRestoreConfirm(false);
+      setRestoreFilePath(null);
+    } catch (err) {
+      toast({ title: 'Restore failed', description: String(err), variant: 'destructive' });
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -114,6 +170,34 @@ export default function SettingsDialog() {
           </div>
 
           <div className="border-t pt-4 space-y-3">
+            <h3 className="text-sm font-medium leading-none">Backup & Restore</h3>
+            <p className="text-xs text-muted-foreground leading-normal">
+              Export your vault as an encrypted backup file, or restore from a previous backup.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2 text-xs"
+                onClick={handleBackup}
+                disabled={backingUp}
+              >
+                <Download className={`h-4 w-4 ${backingUp ? 'animate-pulse' : ''}`} />
+                {backingUp ? 'Exporting...' : 'Backup Vault'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2 text-xs"
+                onClick={handleSelectRestoreFile}
+              >
+                <Upload className="h-4 w-4" />
+                Restore Vault
+              </Button>
+            </div>
+          </div>
+
+          <div className="border-t pt-4 space-y-3">
             <h3 className="text-sm font-medium leading-none">Security & Maintenance</h3>
             <p className="text-xs text-muted-foreground leading-normal">
               Manage your master password or securely wipe the local vault.
@@ -137,6 +221,98 @@ export default function SettingsDialog() {
           </div>
           </div>
 
+        </div>
+
+        <RestoreDialog
+          open={showRestoreConfirm}
+          onOpenChange={setShowRestoreConfirm}
+          restoreMode={restoreMode}
+          setRestoreMode={setRestoreMode}
+          restoring={restoring}
+          onConfirm={handleConfirmRestore}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RestoreDialog({
+  open,
+  onOpenChange,
+  restoreMode,
+  setRestoreMode,
+  restoring,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  restoreMode: 'replace' | 'merge';
+  setRestoreMode: (mode: 'replace' | 'merge') => void;
+  restoring: boolean;
+  onConfirm: () => Promise<void>;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            Restore Vault
+          </DialogTitle>
+          <DialogDescription>
+            This will overwrite your current vault data.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 pt-2">
+          <div>
+            <label className="text-sm font-medium">Restore Mode</label>
+            <div className="flex gap-3 mt-1">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="restoreMode"
+                  value="replace"
+                  checked={restoreMode === 'replace'}
+                  onChange={() => setRestoreMode('replace')}
+                  className="accent-primary"
+                />
+                Replace
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="restoreMode"
+                  value="merge"
+                  checked={restoreMode === 'merge'}
+                  onChange={() => setRestoreMode('merge')}
+                  className="accent-primary"
+                />
+                Merge
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {restoreMode === 'replace'
+                ? 'Replace all projects with the backup.'
+                : 'Add projects from the backup, skipping existing IDs.'}
+            </p>
+          </div>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={onConfirm}
+              disabled={restoring}
+            >
+              {restoring ? 'Restoring...' : 'Confirm Restore'}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
