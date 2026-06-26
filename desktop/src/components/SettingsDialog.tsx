@@ -28,6 +28,8 @@ export default function SettingsDialog() {
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [restoreFilePath, setRestoreFilePath] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [showRestoreSuccess, setShowRestoreSuccess] = useState(false);
+  const [restoreSuccessTitle, setRestoreSuccessTitle] = useState('');
 
   const checkForUpdates = async () => {
     setChecking(true);
@@ -93,11 +95,9 @@ export default function SettingsDialog() {
       await tauri.importVault(state.password, restoreFilePath, restoreMode);
       await refreshVault();
       setShowRestoreConfirm(false);
-      setRestoreFilePath(null);
+      setRestoreSuccessTitle(restoreMode === 'replace' ? 'Vault replaced successfully' : 'Vault merged successfully');
       setOpen(false);
-      toast({ title: restoreMode === 'replace' ? 'Vault replaced successfully' : 'Vault merged successfully' });
-      setShowRestoreConfirm(false);
-      setRestoreFilePath(null);
+      setTimeout(() => setShowRestoreSuccess(true), 300);
     } catch (err) {
       toast({ title: 'Restore failed', description: String(err), variant: 'destructive' });
     } finally {
@@ -110,6 +110,7 @@ export default function SettingsDialog() {
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
@@ -226,17 +227,37 @@ export default function SettingsDialog() {
           </div>
 
         </div>
-
-        <RestoreDialog
-          open={showRestoreConfirm}
-          onOpenChange={setShowRestoreConfirm}
-          restoreMode={restoreMode}
-          setRestoreMode={setRestoreMode}
-          restoring={restoring}
-          onConfirm={handleConfirmRestore}
-        />
       </DialogContent>
     </Dialog>
+
+    <RestoreDialog
+      open={showRestoreConfirm}
+      onOpenChange={setShowRestoreConfirm}
+      restoreMode={restoreMode}
+      setRestoreMode={setRestoreMode}
+      restoring={restoring}
+      onConfirm={handleConfirmRestore}
+    />
+
+    <Dialog open={showRestoreSuccess} onOpenChange={setShowRestoreSuccess}>
+      <DialogContent className="sm:max-w-[320px]">
+        <DialogHeader>
+          <DialogTitle>Restore Successful</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 pt-2">
+          <p className="text-sm text-muted-foreground">{restoreSuccessTitle}</p>
+          <div className="flex justify-end pt-2">
+            <Button
+              size="sm"
+              onClick={() => setShowRestoreSuccess(false)}
+            >
+              OK
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
