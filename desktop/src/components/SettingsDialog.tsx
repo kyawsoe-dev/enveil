@@ -18,7 +18,7 @@ import ResetVaultDialog from './ResetVaultDialog';
 import * as tauri from '@/lib/tauri';
 
 export default function SettingsDialog() {
-  const { state, autoLockTimeout, changeAutoLockTimeout, clipboardTimeout, changeClipboardTimeout } = useVault();
+  const { state, autoLockTimeout, changeAutoLockTimeout, clipboardTimeout, changeClipboardTimeout, refreshVault } = useVault();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
@@ -91,6 +91,10 @@ export default function SettingsDialog() {
     setRestoring(true);
     try {
       await tauri.importVault(state.password, restoreFilePath, restoreMode);
+      await refreshVault();
+      setShowRestoreConfirm(false);
+      setRestoreFilePath(null);
+      setOpen(false);
       toast({ title: restoreMode === 'replace' ? 'Vault replaced successfully' : 'Vault merged successfully' });
       setShowRestoreConfirm(false);
       setRestoreFilePath(null);
