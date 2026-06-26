@@ -168,12 +168,22 @@ export default function DiffView() {
             <span className="text-sm font-medium">Diff: Vault vs File</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleApplyVaultToFile} disabled={applying} title="Overwrite the external .env file with the vault's env vars">
-              {applying ? 'Applying...' : <><Download className="h-3.5 w-3.5" /> Apply vault to file</>}
-            </Button>
-            <Button size="sm" className="h-7 text-xs gap-1.5" onClick={handleApplyFileToVault} disabled={applying} title="Import the external .env file's values into the vault project">
-              {applying ? 'Applying...' : <><Upload className="h-3.5 w-3.5" /> Apply file to vault</>}
-            </Button>
+            <div className="group relative">
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleApplyVaultToFile} disabled={applying}>
+                {applying ? 'Applying...' : <><Download className="h-3.5 w-3.5" /> Apply vault to file</>}
+              </Button>
+              <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-56 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                Overwrite the .env file with vault values.
+              </div>
+            </div>
+            <div className="group relative">
+              <Button size="sm" className="h-7 text-xs gap-1.5" onClick={handleApplyFileToVault} disabled={applying}>
+                {applying ? 'Applying...' : <><Upload className="h-3.5 w-3.5" /> Apply file to vault</>}
+              </Button>
+              <div className="pointer-events-none invisible group-hover:visible absolute bottom-0 left-1/2 z-50 mb-0.5 w-56 -translate-x-1/2 translate-y-full rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                Import .env file values into the vault project.
+              </div>
+            </div>
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExitFileMode} disabled={applying}>
               Exit
             </Button>
