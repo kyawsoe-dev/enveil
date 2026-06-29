@@ -371,6 +371,23 @@ cd desktop && npm install
 cargo tauri dev
 ```
 
+### Build for Ubuntu 24.04 (Noble)
+
+```bash
+# Install system dependencies
+sudo apt install \
+  libwebkit2gtk-4.0-dev \
+  libgtk-3-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev \
+  build-essential \
+  libssl-dev \
+  file
+
+# Build release bundle (.deb, .AppImage)
+cargo tauri build
+```
+
 The frontend is a static Next.js export (`next build`, output in `desktop/out/`). Tauri loads `../desktop/out/index.html` as the webview source.
 
 ## Rust Dependencies
