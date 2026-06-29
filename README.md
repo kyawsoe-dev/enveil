@@ -40,7 +40,7 @@ This removes the quarantine attribute. Then open the app normally.
 
 ## Features
 
-### 🔐 Vault & Security
+### Vault & Security
 
 - **Encrypted Vault** — Master password → Argon2id → ChaCha20Poly1305 encrypted `vault.bin` on disk
 - **Change Password** — Re-encrypts entire vault with a new master password
@@ -48,14 +48,14 @@ This removes the quarantine attribute. Then open the app normally.
 - **Reset Vault** — Securely wipe the entire vault and all projects
 - **Vault Backup & Restore** — Export to `.vault` file and restore with Merge or Replace mode
 
-### 📦 Project Management
+### Project Management
 
 - **Project CRUD** — Create, edit, rename, delete projects with a key-value env map
 - **Project Duplicate** — Duplicate existing projects with all env vars intact
 - **Search** — Cmd+K search across project names, env keys, and env values
 - **Dashboard Analytics** — Stats cards + bar chart ranking projects by env var count
 
-### ✏️ Environment Variables
+### Environment Variables
 
 - **Inline Env Editing** — Add, edit, bulk import, and delete env vars per project
 - **Multi-Select Bulk Ops** — Checkbox + Shift-click range selection + floating action bar for batch delete/copy
@@ -63,14 +63,14 @@ This removes the quarantine attribute. Then open the app normally.
 - **Drag & Drop Import** — Drop `.env` files or paste content onto the table; conflict dialog for existing keys
 - **.env.example Generation** — Generate `.env.example` from current project's env var keys
 
-### 🔄 Sync & Integration
+### Sync & Integration
 
 - **Temp .env File** — Secure (600 perms) temp `.env` in `/tmp`, symlinked into your project folder. Auto-updated on edit, auto-deleted on vault lock
 - **.env Auto-Sync** — Editing the linked `.env` file syncs changes back to the vault with auto-created history snapshots
 - **LAN Sync** — Share projects with teammates on the same local network with per-project share passwords
 - **Open Folder / Terminal** — Open a project's linked folder in Finder and Terminal with one click
 
-### 🖥️ Developer Tools
+### Developer Tools
 
 - **Terminal Runner** — Run shell commands with decrypted env vars injected — streaming output, Stop, Kill by port, command history, per-project cwd
 - **Project Run Command** — Save a run command (e.g. `npm start`) and launch it from the linked toolbar with one click
@@ -78,7 +78,7 @@ This removes the quarantine attribute. Then open the app normally.
 - **Env Var Version History** — Auto-snapshots on every save; browse history with diff preview; restore any snapshot
 - **Process Group Isolation** — Kill/Stop terminates all child processes — no orphaned `node`/`npm` processes
 
-### 🎨 UI & UX
+### UI & UX
 
 - **Dark/Light/System Theme** — Class-based theming via `next-themes`
 - **CSS Tooltips** — Hover tooltips on Apply vault-to-file / Apply file-to-vault buttons in DiffView
