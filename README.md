@@ -35,8 +35,8 @@ This removes the quarantine attribute. Then open the app normally.
 | ![](screenshots/dashboard.png) | ![](screenshots/env-table.png) | ![](screenshots/diff-view.png) | ![](screenshots/terminal-runner.png) |
 | **LAN Sync** | **LAN Download** | **Settings** | **Usage Guide** |
 | ![](screenshots/lan-sync.png) | ![](screenshots/lan-sync-download.png) | ![](screenshots/settings.png) | ![](screenshots/usage-guide.png) |
-| **Temp .env (before)** | **Temp .env (after)** |  |  |
-| ![](screenshots/before-link-to-project.png) | ![](screenshots/after-link-to-project.png) |  |  |
+| **Temp .env (before)** | **Temp .env (after)** | **Env Version History** | **Drag & Drop Import** |
+| ![](screenshots/before-link-to-project.png) | ![](screenshots/after-link-to-project.png) | ![](screenshots/env-version-history.png) | ![](screenshots/env-drap-and-drop-import.png) |
 
 ## Features
 
