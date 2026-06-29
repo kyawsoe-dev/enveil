@@ -37,6 +37,8 @@ pub struct AppState(pub Arc<Mutex<Option<Vault>>>);
 pub struct TempEnvInfo {
     pub temp_dir: PathBuf,
     pub symlink_path: Option<PathBuf>,
+    #[allow(dead_code)]
+    pub watcher: Option<notify::RecommendedWatcher>,
 }
 
 #[derive(Serialize)]
@@ -483,48 +485,172 @@ pub fn stop_command(
 
 #[tauri::command]
 pub fn generate_temp_env(
+    app_handle: tauri::AppHandle,
     vault_state: tauri::State<AppState>,
     temp_state: tauri::State<TempEnvState>,
     project_id: String,
     symlink_path: Option<String>,
+    password: String,
 ) -> Result<String, String> {
-    let vault = vault_state
-        .0
-        .lock()
-        .map_err(|e| e.to_string())?;
-    let vault = vault.as_ref().ok_or("Vault is not unlocked")?;
-    let project = vault
-        .find_project(&project_id)
-        .ok_or_else(|| format!("Project '{}' not found", project_id))?;
+    let (_env_vars, temp_dir, env_path) = {
+        let vault = vault_state
+            .0
+            .lock()
+            .map_err(|e| e.to_string())?;
+        let vault = vault.as_ref().ok_or("Vault is not unlocked")?;
+        let project = vault
+            .find_project(&project_id)
+            .ok_or_else(|| format!("Project '{}' not found", project_id))?;
 
-    let temp_dir = std::env::temp_dir().join(format!("enveil_{}", &project_id));
-    std::fs::create_dir_all(&temp_dir).map_err(|e| format!("Failed to create temp dir: {}", e))?;
+        let temp_dir = std::env::temp_dir().join(format!("enveil_{}", &project_id));
+        std::fs::create_dir_all(&temp_dir).map_err(|e| format!("Failed to create temp dir: {}", e))?;
 
-    let env_path = temp_dir.join(".env");
-    let content: String = project
-        .env_vars
-        .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
-        .collect::<Vec<_>>()
-        .join("\n");
-    std::fs::write(&env_path, &content).map_err(|e| format!("Failed to write .env: {}", e))?;
+        let env_path = temp_dir.join(".env");
+        let content: String = project
+            .env_vars
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&env_path, &content).map_err(|e| format!("Failed to write .env: {}", e))?;
 
-    #[cfg(unix)]
-    std::fs::set_permissions(&env_path, Permissions::from_mode(0o600))
-        .map_err(|e| format!("Failed to set permissions: {}", e))?;
-
-    if let Some(ref sym_path_str) = symlink_path {
-        let sym_path = std::path::Path::new(sym_path_str);
-        if sym_path.exists() {
-            std::fs::remove_file(sym_path).map_err(|e| format!("Failed to remove existing symlink target: {}", e))?;
-        }
         #[cfg(unix)]
-        std::os::unix::fs::symlink(&env_path, sym_path)
-            .map_err(|e| format!("Failed to create symlink: {}", e))?;
-        #[cfg(windows)]
-        std::os::windows::fs::symlink_file(&env_path, sym_path)
-            .map_err(|e| format!("Failed to create symlink: {}", e))?;
+        std::fs::set_permissions(&env_path, Permissions::from_mode(0o600))
+            .map_err(|e| format!("Failed to set permissions: {}", e))?;
+
+        if let Some(ref sym_path_str) = symlink_path {
+            let sym_path = std::path::Path::new(sym_path_str);
+            if sym_path.exists() {
+                std::fs::remove_file(sym_path).map_err(|e| format!("Failed to remove existing symlink target: {}", e))?;
+            }
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(&env_path, sym_path)
+                .map_err(|e| format!("Failed to create symlink: {}", e))?;
+            #[cfg(windows)]
+            std::os::windows::fs::symlink_file(&env_path, sym_path)
+                .map_err(|e| format!("Failed to create symlink: {}", e))?;
+        }
+
+        (project.env_vars.clone(), temp_dir, env_path)
+    };
+
+    // Start file watcher on the temp .env file
+    let env_path_clone = env_path.clone();
+    let project_id_clone = project_id.clone();
+    let vault_state_inner = vault_state.0.clone();
+    let pwd = password.clone();
+    let window = app_handle.get_window("main");
+
+    use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    let (tx, rx) = mpsc::channel();
+    let mut watcher = match RecommendedWatcher::new(tx, Config::default()) {
+        Ok(w) => Some(w),
+        Err(_) => {
+            // watcher failed — still store TempEnvInfo so link works, just no auto-sync
+            None
+        }
+    };
+
+    if let Some(ref mut w) = watcher {
+        let _ = w.watch(&env_path_clone, RecursiveMode::NonRecursive);
     }
+
+    std::thread::spawn(move || {
+        // Keep watcher alive until rx disconnects
+        loop {
+            match rx.recv() {
+                Ok(Ok(event)) => {
+                    let should_process = matches!(
+                        event.kind,
+                        EventKind::Modify(_) | EventKind::Create(_)
+                    );
+                    if !should_process { continue; }
+
+                    // Small delay to let writes settle
+                    std::thread::sleep(Duration::from_millis(100));
+
+                    // Read file
+                    let content = match std::fs::read_to_string(&env_path_clone) {
+                        Ok(c) => c,
+                        Err(_) => continue,
+                    };
+
+                    // Parse KEY=VALUE lines
+                    let mut parsed: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+                    for line in content.lines() {
+                        let line = line.trim();
+                        if line.is_empty() || line.starts_with('#') {
+                            continue;
+                        }
+                        if let Some(eq_pos) = line.find('=') {
+                            let key = line[..eq_pos].trim().to_string();
+                            let value = line[eq_pos + 1..].trim().to_string();
+                            if !key.is_empty() {
+                                parsed.insert(key, value);
+                            }
+                        }
+                    }
+
+                    // Update vault in memory if changed
+                    let should_save = {
+                        let mut guard = match vault_state_inner.lock() {
+                            Ok(g) => g,
+                            Err(_) => continue,
+                        };
+                        let vault = match guard.as_mut() {
+                            Some(v) => v,
+                            None => continue,
+                        };
+                        let project = match vault.find_project_mut(&project_id_clone) {
+                            Some(p) => p,
+                            None => continue,
+                        };
+
+                        if project.env_vars == parsed {
+                            false // no change, skip to avoid loop
+                        } else {
+                            // Create history snapshot
+                            let snapshot = crate::models::EnvSnapshot {
+                                timestamp: std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs() as i64,
+                                label: "Auto-sync from .env file".to_string(),
+                                env_vars: project.env_vars.clone(),
+                            };
+                            project.history.push(snapshot);
+                            if project.history.len() > 50 {
+                                project.history.remove(0);
+                            }
+
+                            project.env_vars = parsed.clone();
+                            true
+                        }
+                    };
+
+                    if should_save {
+                        if let Err(e) = save_vault(
+                            &vault_state_inner.lock().unwrap().as_ref().unwrap(),
+                            &pwd,
+                        ) {
+                            eprintln!("Failed to save vault after file sync: {}", e);
+                        }
+
+                        if let Some(ref w) = window {
+                            let _ = w.emit("vault:env-synced", serde_json::json!({
+                                "project_id": project_id_clone,
+                            }));
+                        }
+                    }
+                }
+                Ok(Err(_)) => continue,
+                Err(mpsc::RecvError) => break,
+            }
+        }
+    });
 
     let mut temps = temp_state.0.lock().map_err(|e| e.to_string())?;
     temps.insert(
@@ -532,6 +658,7 @@ pub fn generate_temp_env(
         TempEnvInfo {
             temp_dir: temp_dir.clone(),
             symlink_path: symlink_path.map(PathBuf::from),
+            watcher,
         },
     );
 

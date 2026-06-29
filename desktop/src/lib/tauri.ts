@@ -47,8 +47,8 @@ export async function getVault(): Promise<Vault | null> {
   return invoke<Vault | null>('get_vault');
 }
 
-export async function generateTempEnv(projectId: string, symlinkPath?: string): Promise<string> {
-  return invoke<string>('generate_temp_env', { projectId, symlinkPath: symlinkPath ?? null });
+export async function generateTempEnv(projectId: string, symlinkPath: string | undefined, password: string): Promise<string> {
+  return invoke<string>('generate_temp_env', { projectId, symlinkPath: symlinkPath ?? null, password });
 }
 
 export async function regenerateTempEnv(projectId: string): Promise<void> {

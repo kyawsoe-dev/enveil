@@ -21,6 +21,7 @@ thiserror = "1"
 rand = "0.8"
 mdns-sd = "0.13"
 tokio = { version = "1", features = ["net", "io-util", "macros", "sync"] }
+notify = { version = "7", features = ["macos_kqueue"] }
 
 [features]
 default = ["custom-protocol"]

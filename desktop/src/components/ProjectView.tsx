@@ -11,7 +11,7 @@ import HistoryPanel from './HistoryPanel';
 import * as tauri from '@/lib/tauri';
 
 export default function ProjectView() {
-  const { state, saveProject, runFileDiff, setView, setTerminalCommand } = useVault();
+  const { state, saveProject, runFileDiff, setView, setTerminalCommand, refreshVault } = useVault();
   const selected = state.vault?.projects.find((p) => p.id === state.selectedProjectId);
   const [editingSharePwd, setEditingSharePwd] = useState(false);
   const [sharePwdInput, setSharePwdInput] = useState('');
@@ -75,6 +75,18 @@ export default function ProjectView() {
     return () => clearTimeout(timer);
   }, [envVarsKey, selected?.id, tempEnvPath]);
 
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      listen<{ project_id: string }>('vault:env-synced', (event) => {
+        if (event.payload.project_id === state.selectedProjectId) {
+          refreshVault();
+        }
+      }).then((fn) => { unsub = fn; });
+    });
+    return () => { unsub?.(); };
+  }, [state.selectedProjectId]);
+
   if (!selected) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -113,7 +125,7 @@ export default function ProjectView() {
     try {
       const s = suffix ?? envSuffix;
       if (symlinkPath && !suffix) {
-        await tauri.generateTempEnv(selected.id, symlinkPath);
+        await tauri.generateTempEnv(selected.id, symlinkPath, state.password);
         const status = await tauri.getTempEnvStatus(selected.id);
         if (status) setTempEnvPath(status.temp_path);
         return;
@@ -128,7 +140,7 @@ export default function ProjectView() {
       const dirPath = String(selectedDir);
       const baseName = s ? `.env.${s}` : '.env';
       const envPath = dirPath.endsWith('/') ? `${dirPath}${baseName}` : `${dirPath}/${baseName}`;
-      const path = await tauri.generateTempEnv(selected.id, envPath);
+      const path = await tauri.generateTempEnv(selected.id, envPath, state.password);
       localStorage.setItem(`enveil_symlink_${selected.id}`, envPath);
       setTempEnvPath(path);
       setSymlinkPath(envPath);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi, Copy, FileText, ExternalLink, RefreshCw, Trash2, Upload, FolderOpen, CheckSquare, History, FileOutput } from 'lucide-react';
+import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi, Copy, FileText, ExternalLink, RefreshCw, Trash2, Upload, FolderOpen, CheckSquare, History, FileOutput, Download, Merge, Activity } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -62,10 +62,10 @@ export default function UsageGuide() {
               <Terminal className="h-3.5 w-3.5 text-primary" /> Run Commands
             </h3>
             <p className="text-muted-foreground">
-              Switch to the <strong>Terminal</strong> view. Select a project and enter a command (e.g. <code className="text-xs bg-muted px-1 rounded">printenv</code>). {APP_NAME} injects the project's env vars into the process. Output streams in real time — click <strong>Stop</strong> to halt a running command.
+              Switch to the <strong>Terminal</strong> view. Select a project and enter a command (e.g. <code className="text-xs bg-muted px-1 rounded">printenv</code>). {APP_NAME} injects the project's env vars into the process. Output streams in real time — click <strong>Stop</strong> to halt a running command. All commands run in an isolated process group — <strong>Stop</strong> and <strong>Kill</strong> terminate the command <em>and all of its child processes</em> (no orphaned <code className="text-xs bg-muted px-1 rounded">node</code> / <code className="text-xs bg-muted px-1 rounded">npm</code> processes left behind).
             </p>
             <p className="text-muted-foreground mt-2">
-              If a command fails (e.g. port conflict), the button changes to <strong>Kill</strong> — click it to kill the orphaned process holding that port. Use <code className="text-xs bg-muted px-1 rounded">cd &lt;dir&gt;</code> as a built-in to change the working directory for subsequent commands.
+              If a command fails (e.g. port conflict), the button changes to <strong>Kill</strong> — click it to kill the process holding that port. Use <code className="text-xs bg-muted px-1 rounded">cd &lt;dir&gt;</code> as a built-in to change the working directory for subsequent commands.
             </p>
             <p className="text-muted-foreground mt-2">
               Press <kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">↑</kbd><kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">↓</kbd> to cycle through command history, or <kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs font-mono">Ctrl+L</kbd> to clear output.
@@ -134,7 +134,7 @@ export default function UsageGuide() {
               Generate a secure temporary <code className="text-xs bg-muted px-1 rounded">.env</code> file in your project folder. Click <strong>Generate &amp; Link</strong>, pick your project folder, and choose an environment suffix (<code className="text-xs bg-muted px-1 rounded">.env</code>, <code className="text-xs bg-muted px-1 rounded">.env.development</code>, etc.). A symlink is created in your project folder pointing to a secure temp file (600 permissions) in the system temp directory.
             </p>
             <p className="text-muted-foreground mt-2">
-              The temp file auto-updates when you edit env vars — no manual refresh needed. Use <strong>Regenerate</strong> to force a refresh, or <strong>Unlink</strong> to remove the symlink and temp file. All temp files are automatically deleted when you lock the vault.
+              The temp file auto-updates when you edit env vars — no manual refresh needed. Edits made directly to the file (in your editor) are also synced <strong>back</strong> to the vault automatically, with a history snapshot created on each sync. Use <strong>Regenerate</strong> to force a refresh, or <strong>Unlink</strong> to remove the symlink and temp file. All temp files are automatically deleted when you lock the vault.
             </p>
           </section>
 
@@ -258,6 +258,30 @@ export default function UsageGuide() {
             </div>
             <p className="text-muted-foreground mt-2 text-xs">
               All data stays on your LAN. Both devices must be on the same network. Transfers are encrypted with a random session key — no plaintext ever leaves your machine. Rename each device using the pencil icon to easily tell them apart.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <Download className="h-3.5 w-3.5 text-primary" /> Vault Backup & Restore
+            </h3>
+            <p className="text-muted-foreground">
+              Open <strong>Settings</strong> from the sidebar. Click <strong>Backup Vault</strong> to export your entire vault to a <code className="text-xs bg-muted px-1 rounded">.vault</code> file (same Argon2id + ChaCha20Poly1305 encryption as <code className="text-xs bg-muted px-1 rounded">vault.bin</code>). A native save dialog lets you choose the location.
+            </p>
+            <p className="text-muted-foreground mt-2">
+              Click <strong>Restore Vault</strong> and pick a <code className="text-xs bg-muted px-1 rounded">.vault</code> file to restore. Choose <strong>Merge</strong> to import projects without overwriting existing ones (duplicate IDs are skipped), or <strong>Replace</strong> to completely overwrite your vault. The vault refreshes automatically after restore.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <Activity className="h-3.5 w-3.5 text-primary" /> .env Auto-Sync
+            </h3>
+            <p className="text-muted-foreground">
+              After linking a temp <code className="text-xs bg-muted px-1 rounded">.env</code> file, any edit you make to that file (in your editor or via <code className="text-xs bg-muted px-1 rounded">echo</code>) is automatically synced back to the vault. A history snapshot labeled <em>"Auto-sync from .env file"</em> is created on each sync so you can revert if needed.
+            </p>
+            <p className="text-muted-foreground mt-2">
+              To prevent loops, the sync only triggers when the file content actually differs from the vault. Regenerating the temp file (via the <strong>Regenerate</strong> vault button) does <em>not</em> cause a reverse sync.
             </p>
           </section>
 

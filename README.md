@@ -63,6 +63,10 @@ This removes the quarantine attribute. Then open the app normally.
 | **LAN Sync** | Share projects with teammates on the same local network with per-project share passwords for download authorization |
 | **Dark/Light/System Theme** | Class-based theming via `next-themes` |
 | **Project Duplicate** | Duplicate existing projects to create copies with shared env vars |
+| **Vault Backup & Restore** | Export your entire vault to a `.vault` backup file (same Argon2id + ChaCha20Poly1305 format) and restore later with Merge or Replace mode |
+| **.env Auto-Sync** | Editing the linked `.env` file in your editor automatically syncs changes back to the vault — history snapshots are created on every sync |
+| **Process Group Isolation** | Running commands use process groups so Kill/Stop terminates all child processes (no orphaned `node`/`npm` processes) |
+| **CSS Tooltips** | Hover tooltips on Apply vault-to-file / Apply file-to-vault buttons in DiffView |
 
 ## Architecture
 
@@ -293,11 +297,13 @@ All commands return `Result<T, String>` for frontend consumption.
 | `get_peer_projects` | `peerDeviceName: String` | `Vec<ProjectSummary>` |
 | `sync_project_from_peer` | `peerDeviceName: String, projectId: String, password: String, sharePassword: String` | `Project` |
 | `set_device_name` | `name: String` | `()` |
-| `generate_temp_env` | `projectId: String, symlinkPath: String?` | `String` (temp file path) |
+| `generate_temp_env` | `projectId: String, symlinkPath: String?, password: String` | `String` (temp file path) |
 | `regenerate_temp_env` | `projectId: String` | `()` |
 | `delete_temp_env` | `projectId: String` | `()` |
 | `cleanup_all_temp_envs` | — | `()` |
 | `get_temp_env_status` | `projectId: String` | `TempEnvStatus?` |
+| `export_vault` | `password: String, outputPath: String` | `()` |
+| `import_vault` | `password: String, inputPath: String, mode: String ("replace" | "merge")` | `()` |
 
 ## Data Models
 
@@ -380,6 +386,7 @@ The frontend is a static Next.js export (`next build`, output in `desktop/out/`)
 | `thiserror` 1 | Error types |
 | `rand` 0.8 | Salt & nonce generation |
 | `mdns-sd` 0.13 | LAN service discovery via mDNS |
+| `notify` 7 | Cross-platform file system watcher for `.env` auto-sync |
 
 ---
 
