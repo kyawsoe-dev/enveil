@@ -384,8 +384,8 @@ sudo apt install \
   libssl-dev \
   file
 
-# Build release bundle (.deb, .AppImage)
-cargo tauri build
+# Build release bundle (.deb, .AppImage) — for signed updater, set your private key
+TAURI_PRIVATE_KEY="your_private_key_here" TAURI_KEY_PASSWORD="" cargo tauri build
 ```
 
 The frontend is a static Next.js export (`next build`, output in `desktop/out/`). Tauri loads `../desktop/out/index.html` as the webview source.
