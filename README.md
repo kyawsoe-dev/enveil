@@ -385,7 +385,7 @@ sudo apt install \
   file
 
 # Build release bundle (.deb, .AppImage)
-TAURI_PRIVATE_KEY=your_private_key_here TAURI_KEY_PASSWORD=your_key_password_here cargo tauri build
+cargo tauri build
 ```
 
 The frontend is a static Next.js export (`next build`, output in `desktop/out/`). Tauri loads `../desktop/out/index.html` as the webview source.
