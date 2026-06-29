@@ -40,33 +40,48 @@ This removes the quarantine attribute. Then open the app normally.
 
 ## Features
 
-| Feature | Description |
-|---|---|---|
-| **Encrypted Vault** | Master password → Argon2id → ChaCha20Poly1305 encrypted `vault.bin` on disk |
-| **Project CRUD** | Create, edit, rename, delete projects (each with a key-value env map) |
-| **Inline Env Editing** | Add, edit, bulk import, and delete env vars per project |
-| **Multi-Select Bulk Ops** | Checkbox column + Shift-click range selection + floating action bar for batch delete/copy |
-| **Export / Copy All** | Export project env vars as `.env` file; one-click Copy All button |
-| **Project Diff** | Side-by-side comparison of any two projects or against a `.env` file |
-| **Terminal Runner** | Run shell commands with decrypted env vars injected — streaming output, Stop, Kill by port, command history, per-project cwd |
-| **Project Run Command** | Save a run command per project (e.g. `npm start`) and launch it from the linked toolbar with one click |
-| **Env Var Version History** | Auto-snapshots on every save; browse history with side-by-side preview diff; restore any snapshot |
-| **Dashboard Analytics** | Stats cards + bar chart ranking projects by env var count |
-| **Search** | Cmd+K search across project names, env keys, and env values |
-| **Drag & Drop Import** | Drop `.env` files or paste `KEY=VALUE` content onto the env table; conflict dialog for existing keys |
-| **Open Folder / Terminal** | Open a project's linked folder in Finder and Terminal with one click |
-| **.env.example Generation** | Generate a `.env.example` file from the current project's env var keys |
-| **Change Password** | Re-encrypts entire vault with a new master password |
-| **Auto-Lock** | Lock vault after configurable inactivity timeout; running processes auto-stop on lock |
-| **Reset Vault** | Securely wipe the entire vault and all projects |
-| **Temp .env File** | Generate a secure (600 perms) temporary `.env` file in `/tmp`, symlinked into your project folder. Auto-updated on edit, auto-deleted on vault lock |
-| **LAN Sync** | Share projects with teammates on the same local network with per-project share passwords for download authorization |
-| **Dark/Light/System Theme** | Class-based theming via `next-themes` |
-| **Project Duplicate** | Duplicate existing projects to create copies with shared env vars |
-| **Vault Backup & Restore** | Export your entire vault to a `.vault` backup file (same Argon2id + ChaCha20Poly1305 format) and restore later with Merge or Replace mode |
-| **.env Auto-Sync** | Editing the linked `.env` file in your editor automatically syncs changes back to the vault — history snapshots are created on every sync |
-| **Process Group Isolation** | Running commands use process groups so Kill/Stop terminates all child processes (no orphaned `node`/`npm` processes) |
-| **CSS Tooltips** | Hover tooltips on Apply vault-to-file / Apply file-to-vault buttons in DiffView |
+### 🔐 Vault & Security
+
+- **Encrypted Vault** — Master password → Argon2id → ChaCha20Poly1305 encrypted `vault.bin` on disk
+- **Change Password** — Re-encrypts entire vault with a new master password
+- **Auto-Lock** — Lock vault after configurable inactivity timeout; running processes auto-stop on lock
+- **Reset Vault** — Securely wipe the entire vault and all projects
+- **Vault Backup & Restore** — Export to `.vault` file and restore with Merge or Replace mode
+
+### 📦 Project Management
+
+- **Project CRUD** — Create, edit, rename, delete projects with a key-value env map
+- **Project Duplicate** — Duplicate existing projects with all env vars intact
+- **Search** — Cmd+K search across project names, env keys, and env values
+- **Dashboard Analytics** — Stats cards + bar chart ranking projects by env var count
+
+### ✏️ Environment Variables
+
+- **Inline Env Editing** — Add, edit, bulk import, and delete env vars per project
+- **Multi-Select Bulk Ops** — Checkbox + Shift-click range selection + floating action bar for batch delete/copy
+- **Export / Copy All** — Export as `.env` file or copy all `KEY=VALUE` lines at once
+- **Drag & Drop Import** — Drop `.env` files or paste content onto the table; conflict dialog for existing keys
+- **.env.example Generation** — Generate `.env.example` from current project's env var keys
+
+### 🔄 Sync & Integration
+
+- **Temp .env File** — Secure (600 perms) temp `.env` in `/tmp`, symlinked into your project folder. Auto-updated on edit, auto-deleted on vault lock
+- **.env Auto-Sync** — Editing the linked `.env` file syncs changes back to the vault with auto-created history snapshots
+- **LAN Sync** — Share projects with teammates on the same local network with per-project share passwords
+- **Open Folder / Terminal** — Open a project's linked folder in Finder and Terminal with one click
+
+### 🖥️ Developer Tools
+
+- **Terminal Runner** — Run shell commands with decrypted env vars injected — streaming output, Stop, Kill by port, command history, per-project cwd
+- **Project Run Command** — Save a run command (e.g. `npm start`) and launch it from the linked toolbar with one click
+- **Project Diff** — Side-by-side comparison of any two projects or against a `.env` file
+- **Env Var Version History** — Auto-snapshots on every save; browse history with diff preview; restore any snapshot
+- **Process Group Isolation** — Kill/Stop terminates all child processes — no orphaned `node`/`npm` processes
+
+### 🎨 UI & UX
+
+- **Dark/Light/System Theme** — Class-based theming via `next-themes`
+- **CSS Tooltips** — Hover tooltips on Apply vault-to-file / Apply file-to-vault buttons in DiffView
 
 ## Architecture
 
