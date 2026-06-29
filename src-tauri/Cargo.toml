@@ -1,6 +1,6 @@
 [package]
 name = "env-vault"
-version = "0.1.2"
+version = "0.1.3"
 description = "A centralized environment variable and secret management platform for developers. Securely store, encrypt, compare, search, duplicate projects, and inject secrets across multiple applications. Share projects with team members on the same network via LAN sync with per-project share passwords for download authorization."
 authors = ["Kyaw Soe"]
 edition = "2021"
