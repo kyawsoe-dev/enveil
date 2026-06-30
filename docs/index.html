@@ -19,22 +19,24 @@
       property="og:image"
       content="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/screenshots/dashboard.png"
     />
-    <link rel="icon" href="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/desktop/public/logo-square.png" />
+    <link rel="icon" href="assets/logo.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <nav class="nav">
       <div class="shell nav-inner">
         <a class="brand" href="#top" aria-label="ENVEIL home">
-          <img src="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/desktop/public/logo-square.png" alt="logo" />
+          <span class="brand-mark">
+            <img src="assets/logo.png" alt="logo" />
+          </span>
           <span>ENVEIL</span>
         </a>
         <div class="nav-links" aria-label="Primary navigation">
-          <a href="#features">Features</a>
-          <a href="#screenshots">Screenshots</a>
-          <a href="#security">Security</a>
-          <a href="#development">Development</a>
-          <a href="https://github.com/kyawsoe-dev/enveil">GitHub</a>
+          <a href="#top" data-section="top">Home</a>
+          <a href="#features" data-section="features">Features</a>
+          <a href="#screenshots" data-section="screenshots">Screenshots</a>
+          <a href="#security" data-section="security">Security</a>
+          <a href="#development" data-section="development">Development</a>
         </div>
         <div class="nav-actions">
           <div class="theme-toggle" aria-label="Theme selector">
@@ -42,21 +44,31 @@
             <button type="button" data-theme-choice="dark" title="Dark theme" aria-label="Dark theme">☾</button>
             <button type="button" data-theme-choice="system" title="System theme" aria-label="System theme">◐</button>
           </div>
-          <button class="menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-menu">
-            <span></span>
+          <button class="menu-button" type="button" aria-label="Expand navigation" aria-expanded="false" aria-controls="mobile-menu">
+            <svg class="menu-open-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 7h14"></path>
+              <path d="M5 12h14"></path>
+              <path d="M5 17h14"></path>
+            </svg>
+            <svg class="menu-close-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 7l10 10"></path>
+              <path d="M17 7L7 17"></path>
+            </svg>
           </button>
         </div>
       </div>
-      <div class="mobile-menu" id="mobile-menu" data-open="false">
-        <div class="shell mobile-menu-inner">
-          <a href="#features">Features</a>
-          <a href="#screenshots">Screenshots</a>
-          <a href="#security">Security</a>
-          <a href="#development">Development</a>
-          <a href="https://github.com/kyawsoe-dev/enveil">GitHub</a>
-        </div>
-      </div>
     </nav>
+    <div class="mobile-backdrop" data-open="false" aria-hidden="true"></div>
+    <div class="mobile-menu" id="mobile-menu" data-open="false" aria-label="Mobile navigation">
+      <div class="shell mobile-menu-inner">
+        <p class="mobile-menu-title">Navigation</p>
+        <a href="#top" data-section="top">Home</a>
+        <a href="#features" data-section="features">Features</a>
+        <a href="#screenshots" data-section="screenshots">Screenshots</a>
+        <a href="#security" data-section="security">Security</a>
+        <a href="#development" data-section="development">Development</a>
+      </div>
+    </div>
 
     <main id="top">
       <header class="shell hero">
@@ -82,29 +94,38 @@
             </div>
           </div>
           <div class="actions">
-            <div class="download-group">
-              <a class="button" id="primary-download" href="https://github.com/kyawsoe-dev/enveil/releases/latest">
-                Download ENVEIL
-              </a>
-              <details class="download-menu">
-                <summary class="download-menu-button">Other downloads</summary>
-                <div class="download-panel">
-                  <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
-                    <strong>macOS</strong>
-                    <small>Download the latest .dmg from GitHub Releases</small>
-                  </a>
-                  <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
-                    <strong>Windows</strong>
-                    <small>Download the latest .msi from GitHub Releases</small>
-                  </a>
-                  <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
-                    <strong>Linux</strong>
-                    <small>Download the latest .deb or AppImage from GitHub Releases</small>
-                  </a>
-                </div>
-              </details>
-            </div>
-            <a class="button secondary" href="https://github.com/kyawsoe-dev/enveil">View source</a>
+            <details class="download-combo">
+              <summary class="download-primary" id="primary-download" aria-label="Show downloads">
+                <span class="platform-icon download-icon generic" id="download-icon" aria-hidden="true"></span>
+                <span id="download-label">Download ENVEIL</span>
+              </summary>
+              <div class="download-panel">
+                <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
+                  <span class="platform-icon mac" aria-hidden="true"></span>
+                  <strong>macOS</strong>
+                  <small>Download the latest .dmg from GitHub Releases</small>
+                </a>
+                <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
+                  <span class="platform-icon windows" aria-hidden="true"></span>
+                  <strong>Windows</strong>
+                  <small>Download the latest .msi from GitHub Releases</small>
+                </a>
+                <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
+                  <span class="platform-icon linux" aria-hidden="true"></span>
+                  <strong>Linux</strong>
+                  <small>Download the latest .deb or AppImage from GitHub Releases</small>
+                </a>
+              </div>
+            </details>
+            <a class="button secondary source-button" href="https://github.com/kyawsoe-dev/enveil">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.04c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.74.08-.74 1.2.09 1.84 1.24 1.84 1.24 1.08 1.83 2.82 1.3 3.51.99.11-.78.42-1.3.76-1.6-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.02 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.82 1.1.82 2.22v3.29c0 .32.21.7.83.58A12 12 0 0 0 12 .5Z"
+                />
+              </svg>
+              View Source Code
+            </a>
           </div>
           <p class="download-note" id="download-note">Detecting your platform for the best installer.</p>
         </div>
