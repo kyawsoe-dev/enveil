@@ -19,510 +19,14 @@
       property="og:image"
       content="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/screenshots/dashboard.png"
     />
-    <link rel="icon" href="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/desktop/public/assets/logo-source.png" />
-    <style>
-      :root {
-        color-scheme: dark;
-        --bg: #080a0f;
-        --surface: rgba(14, 18, 27, 0.76);
-        --surface-strong: #111722;
-        --surface-soft: rgba(255, 255, 255, 0.055);
-        --text: #f3f7ff;
-        --muted: #a1adbc;
-        --line: rgba(255, 255, 255, 0.11);
-        --line-strong: rgba(255, 255, 255, 0.18);
-        --accent: #32d39a;
-        --accent-2: #6ea8ff;
-        --accent-3: #f6c85f;
-        --button-text: #03140e;
-        --nav-bg: rgba(8, 10, 15, 0.72);
-        --code-bg: #070a10;
-        --hero-glow:
-          radial-gradient(circle at 16% 10%, rgba(50, 211, 154, 0.2), transparent 30rem),
-          radial-gradient(circle at 86% 4%, rgba(110, 168, 255, 0.2), transparent 30rem),
-          linear-gradient(180deg, #080a0f 0%, #0a0f16 48%, #0d1118 100%);
-        --shadow: 0 26px 80px rgba(0, 0, 0, 0.36);
-      }
-
-      @media (prefers-color-scheme: light) {
-        :root:not([data-theme]) {
-          color-scheme: light;
-          --bg: #f7f8fb;
-          --surface: rgba(255, 255, 255, 0.78);
-          --surface-strong: #ffffff;
-          --surface-soft: rgba(5, 12, 22, 0.055);
-          --text: #101623;
-          --muted: #5f6b7a;
-          --line: rgba(16, 22, 35, 0.11);
-          --line-strong: rgba(16, 22, 35, 0.18);
-          --accent: #168967;
-          --accent-2: #2e6ee6;
-          --accent-3: #9b6918;
-          --button-text: #ffffff;
-          --nav-bg: rgba(247, 248, 251, 0.78);
-          --code-bg: #f0f3f8;
-          --hero-glow:
-            radial-gradient(circle at 16% 10%, rgba(36, 181, 132, 0.16), transparent 30rem),
-            radial-gradient(circle at 86% 4%, rgba(64, 125, 238, 0.16), transparent 30rem),
-            linear-gradient(180deg, #f8fafc 0%, #f2f5f9 48%, #ffffff 100%);
-          --shadow: 0 28px 90px rgba(21, 30, 45, 0.16);
-        }
-      }
-
-      html[data-theme="light"] {
-        color-scheme: light;
-        --bg: #f7f8fb;
-        --surface: rgba(255, 255, 255, 0.78);
-        --surface-strong: #ffffff;
-        --surface-soft: rgba(5, 12, 22, 0.055);
-        --text: #101623;
-        --muted: #5f6b7a;
-        --line: rgba(16, 22, 35, 0.11);
-        --line-strong: rgba(16, 22, 35, 0.18);
-        --accent: #168967;
-        --accent-2: #2e6ee6;
-        --accent-3: #9b6918;
-        --button-text: #ffffff;
-        --nav-bg: rgba(247, 248, 251, 0.78);
-        --code-bg: #f0f3f8;
-        --hero-glow:
-          radial-gradient(circle at 16% 10%, rgba(36, 181, 132, 0.16), transparent 30rem),
-          radial-gradient(circle at 86% 4%, rgba(64, 125, 238, 0.16), transparent 30rem),
-          linear-gradient(180deg, #f8fafc 0%, #f2f5f9 48%, #ffffff 100%);
-        --shadow: 0 28px 90px rgba(21, 30, 45, 0.16);
-      }
-
-      html[data-theme="dark"] {
-        color-scheme: dark;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      html {
-        scroll-behavior: smooth;
-      }
-
-      body {
-        margin: 0;
-        background: var(--hero-glow);
-        color: var(--text);
-        font-family:
-          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        line-height: 1.6;
-      }
-
-      a {
-        color: inherit;
-      }
-
-      .shell {
-        width: min(1180px, calc(100% - 40px));
-        margin: 0 auto;
-      }
-
-      .nav {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        border-bottom: 1px solid var(--line);
-        background: var(--nav-bg);
-        backdrop-filter: blur(18px);
-      }
-
-      .nav-inner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        min-height: 68px;
-        gap: 20px;
-      }
-
-      .brand {
-        display: inline-flex;
-        align-items: center;
-        gap: 12px;
-        font-weight: 800;
-        letter-spacing: 0;
-        text-decoration: none;
-      }
-
-      .brand img {
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-      }
-
-      .nav-links {
-        display: flex;
-        align-items: center;
-        gap: 18px;
-        color: var(--muted);
-        font-size: 14px;
-      }
-
-      .nav-links a {
-        text-decoration: none;
-      }
-
-      .nav-links a:hover {
-        color: var(--text);
-      }
-
-      .theme-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 3px;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: var(--surface-soft);
-        padding: 4px;
-      }
-
-      .theme-toggle button {
-        display: grid;
-        place-items: center;
-        width: 30px;
-        height: 30px;
-        border: 0;
-        border-radius: 999px;
-        background: transparent;
-        color: var(--muted);
-        cursor: pointer;
-        font: inherit;
-      }
-
-      .theme-toggle button:hover,
-      .theme-toggle button[aria-pressed="true"] {
-        background: var(--surface-strong);
-        color: var(--text);
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-      }
-
-      .hero {
-        display: grid;
-        grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
-        gap: 46px;
-        align-items: center;
-        padding: 82px 0 50px;
-      }
-
-      .eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        margin: 0 0 16px;
-        color: var(--accent);
-        font-size: 13px;
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-
-      h1,
-      h2,
-      h3 {
-        line-height: 1.08;
-        letter-spacing: 0;
-      }
-
-      h1 {
-        margin: 0;
-        max-width: 680px;
-        font-size: clamp(44px, 7vw, 88px);
-      }
-
-      h2 {
-        margin: 0 0 18px;
-        font-size: clamp(28px, 4vw, 46px);
-      }
-
-      h3 {
-        margin: 0 0 10px;
-        font-size: 18px;
-      }
-
-      .lead {
-        max-width: 660px;
-        margin: 22px 0 0;
-        color: var(--muted);
-        font-size: 19px;
-      }
-
-      .hero-meta {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 30px;
-        max-width: 660px;
-      }
-
-      .metric {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface);
-        padding: 14px;
-      }
-
-      .metric strong {
-        display: block;
-        color: var(--text);
-        font-size: 17px;
-      }
-
-      .metric span {
-        display: block;
-        margin-top: 2px;
-        color: var(--muted);
-        font-size: 13px;
-      }
-
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 30px;
-      }
-
-      .button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 44px;
-        padding: 0 18px;
-        border: 1px solid transparent;
-        border-radius: 8px;
-        background: var(--accent);
-        color: var(--button-text);
-        font-weight: 800;
-        text-decoration: none;
-      }
-
-      .button.secondary {
-        background: var(--surface-soft);
-        border-color: var(--line-strong);
-        color: var(--text);
-      }
-
-      .button:hover {
-        transform: translateY(-1px);
-      }
-
-      .hero-shot {
-        overflow: hidden;
-        border: 1px solid var(--line-strong);
-        border-radius: 8px;
-        background: var(--surface-strong);
-        box-shadow: var(--shadow);
-      }
-
-      .hero-shot img,
-      .shot img {
-        display: block;
-        width: 100%;
-        height: auto;
-      }
-
-      section {
-        padding: 58px 0;
-      }
-
-      .section-head {
-        max-width: 760px;
-        margin-bottom: 28px;
-      }
-
-      .section-head p {
-        margin: 0;
-        color: var(--muted);
-        font-size: 17px;
-      }
-
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
-      }
-
-      .card {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface);
-        padding: 20px;
-        backdrop-filter: blur(18px);
-        transition: border-color 0.2s ease, transform 0.2s ease;
-      }
-
-      .card p {
-        margin: 0;
-        color: var(--muted);
-      }
-
-      .card:hover {
-        border-color: var(--line-strong);
-        transform: translateY(-2px);
-      }
-
-      .gallery {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
-      }
-
-      .shot {
-        overflow: hidden;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface-strong);
-        box-shadow: var(--shadow);
-      }
-
-      .shot figcaption {
-        padding: 12px 14px;
-        color: var(--muted);
-        font-size: 14px;
-      }
-
-      figure {
-        margin: 0;
-      }
-
-      .steps {
-        display: grid;
-        gap: 12px;
-        counter-reset: steps;
-      }
-
-      .step {
-        position: relative;
-        display: grid;
-        grid-template-columns: 46px 1fr;
-        gap: 14px;
-        align-items: start;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface);
-        padding: 18px;
-      }
-
-      .step::before {
-        counter-increment: steps;
-        content: counter(steps);
-        display: grid;
-        place-items: center;
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-        background: color-mix(in srgb, var(--accent) 16%, transparent);
-        color: var(--accent);
-        font-weight: 800;
-      }
-
-      .step p {
-        margin: 4px 0 0;
-        color: var(--muted);
-      }
-
-      code,
-      pre {
-        font-family:
-          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, ui-monospace, monospace;
-      }
-
-      code {
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: var(--surface-soft);
-        padding: 2px 6px;
-        color: var(--accent);
-      }
-
-      pre {
-        overflow: auto;
-        margin: 18px 0 0;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--code-bg);
-        padding: 16px;
-        color: var(--text);
-      }
-
-      .two-col {
-        display: grid;
-        grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-        gap: 22px;
-        align-items: start;
-      }
-
-      .list {
-        display: grid;
-        gap: 10px;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-
-      .list li {
-        border-left: 3px solid var(--accent-2);
-        padding-left: 12px;
-        color: var(--muted);
-      }
-
-      .footer {
-        border-top: 1px solid var(--line);
-        padding: 30px 0 46px;
-        color: var(--muted);
-      }
-
-      @media (max-width: 920px) {
-        .hero,
-        .two-col {
-          grid-template-columns: 1fr;
-        }
-
-        .hero {
-          padding-top: 48px;
-        }
-
-        .grid,
-        .gallery {
-          grid-template-columns: 1fr;
-        }
-
-        .nav-links {
-          display: none;
-        }
-
-        .hero-meta {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      @media (max-width: 560px) {
-        .shell {
-          width: min(100% - 24px, 1180px);
-        }
-
-        h1 {
-          font-size: 42px;
-        }
-
-        .actions,
-        .button {
-          width: 100%;
-        }
-
-        .nav-inner {
-          min-height: 62px;
-        }
-      }
-    </style>
+    <link rel="icon" href="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/desktop/public/logo-square.png" />
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <nav class="nav">
       <div class="shell nav-inner">
         <a class="brand" href="#top" aria-label="ENVEIL home">
-          <img src="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/desktop/public/assets/logo-source.png" alt="logo" />
+          <img src="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/desktop/public/logo-square.png" alt="logo" />
           <span>ENVEIL</span>
         </a>
         <div class="nav-links" aria-label="Primary navigation">
@@ -532,10 +36,24 @@
           <a href="#development">Development</a>
           <a href="https://github.com/kyawsoe-dev/enveil">GitHub</a>
         </div>
-        <div class="theme-toggle" aria-label="Theme selector">
-          <button type="button" data-theme-choice="light" title="Light theme" aria-label="Light theme">☀</button>
-          <button type="button" data-theme-choice="dark" title="Dark theme" aria-label="Dark theme">☾</button>
-          <button type="button" data-theme-choice="system" title="System theme" aria-label="System theme">◐</button>
+        <div class="nav-actions">
+          <div class="theme-toggle" aria-label="Theme selector">
+            <button type="button" data-theme-choice="light" title="Light theme" aria-label="Light theme">☀</button>
+            <button type="button" data-theme-choice="dark" title="Dark theme" aria-label="Dark theme">☾</button>
+            <button type="button" data-theme-choice="system" title="System theme" aria-label="System theme">◐</button>
+          </div>
+          <button class="menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-menu">
+            <span></span>
+          </button>
+        </div>
+      </div>
+      <div class="mobile-menu" id="mobile-menu" data-open="false">
+        <div class="shell mobile-menu-inner">
+          <a href="#features">Features</a>
+          <a href="#screenshots">Screenshots</a>
+          <a href="#security">Security</a>
+          <a href="#development">Development</a>
+          <a href="https://github.com/kyawsoe-dev/enveil">GitHub</a>
         </div>
       </div>
     </nav>
@@ -564,9 +82,31 @@
             </div>
           </div>
           <div class="actions">
-            <a class="button" href="https://github.com/kyawsoe-dev/enveil/releases/latest">Download latest</a>
+            <div class="download-group">
+              <a class="button" id="primary-download" href="https://github.com/kyawsoe-dev/enveil/releases/latest">
+                Download ENVEIL
+              </a>
+              <details class="download-menu">
+                <summary class="download-menu-button">Other downloads</summary>
+                <div class="download-panel">
+                  <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
+                    <strong>macOS</strong>
+                    <small>Download the latest .dmg from GitHub Releases</small>
+                  </a>
+                  <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
+                    <strong>Windows</strong>
+                    <small>Download the latest .msi from GitHub Releases</small>
+                  </a>
+                  <a href="https://github.com/kyawsoe-dev/enveil/releases/latest">
+                    <strong>Linux</strong>
+                    <small>Download the latest .deb or AppImage from GitHub Releases</small>
+                  </a>
+                </div>
+              </details>
+            </div>
             <a class="button secondary" href="https://github.com/kyawsoe-dev/enveil">View source</a>
           </div>
+          <p class="download-note" id="download-note">Detecting your platform for the best installer.</p>
         </div>
         <figure class="hero-shot">
           <img
@@ -690,32 +230,11 @@ npm install</code></pre>
     </main>
 
     <footer class="footer">
-      <div class="shell">
-        ENVEIL is developed by Kyaw Soe and released under the MIT License.
+      <div class="shell footer-inner">
+        <span>© 2026 ENVEIL. All rights reserved.</span>
+        <span class="footer-credit">Developed by Kyaw Soe</span>
       </div>
     </footer>
-    <script>
-      const themeButtons = document.querySelectorAll("[data-theme-choice]");
-      const savedTheme = localStorage.getItem("enveil-docs-theme") || "system";
-
-      function setTheme(choice) {
-        if (choice === "system") {
-          document.documentElement.removeAttribute("data-theme");
-        } else {
-          document.documentElement.setAttribute("data-theme", choice);
-        }
-
-        localStorage.setItem("enveil-docs-theme", choice);
-        themeButtons.forEach((button) => {
-          button.setAttribute("aria-pressed", String(button.dataset.themeChoice === choice));
-        });
-      }
-
-      themeButtons.forEach((button) => {
-        button.addEventListener("click", () => setTheme(button.dataset.themeChoice));
-      });
-
-      setTheme(savedTheme);
-    </script>
+    <script src="script.js"></script>
   </body>
 </html>
