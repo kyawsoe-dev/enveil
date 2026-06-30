@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Settings, RefreshCw, Download, Upload, AlertTriangle, ExternalLink, RotateCcw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Settings, RefreshCw, Download, Upload, AlertTriangle, ExternalLink, RotateCcw, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -36,10 +36,23 @@ export default function SettingsDialog() {
     latestVersion: string;
     releaseNotes?: string;
   } | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadStatus, setDownloadStatus] = useState('');
+
+  useEffect(() => {
+    checkForUpdates();
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    checkForUpdates();
+  }, [open]);
 
   const checkForUpdates = async () => {
     setChecking(true);
-    setUpdateInfo(null);
+    setUpdateError(null);
     try {
       const { checkUpdate } = await import('@tauri-apps/api/updater');
       const { shouldUpdate, manifest } = await checkUpdate();
@@ -51,7 +64,23 @@ export default function SettingsDialog() {
         setUpdateInfo({ available: false, currentVersion, latestVersion: currentVersion });
       }
     } catch {
-      setUpdateInfo(null);
+      // Fallback to GitHub API
+      try {
+        const { invoke } = await import('@tauri-apps/api/tauri');
+        const currentVersion: string = await invoke('get_app_version');
+        const res = await fetch('https://api.github.com/repos/kyawsoe-dev/enveil/releases/latest');
+        if (!res.ok) throw new Error(`GitHub API returned ${res.status}`);
+        const data = await res.json();
+        const latestVersion = data.tag_name.replace(/^v/, '');
+        if (latestVersion !== currentVersion) {
+          setUpdateInfo({ available: true, currentVersion, latestVersion, releaseNotes: data.body });
+        } else {
+          setUpdateInfo({ available: false, currentVersion, latestVersion: currentVersion });
+        }
+      } catch (e) {
+        setUpdateInfo(null);
+        setUpdateError(String(e));
+      }
     } finally {
       setChecking(false);
     }
@@ -59,12 +88,39 @@ export default function SettingsDialog() {
 
   const handleInstallUpdate = async () => {
     setUpdating(true);
+    setDownloadProgress(0);
+    setDownloadStatus('Starting download...');
+
+    let unlisten: (() => void) | null = null;
     try {
+      const { listen } = await import('@tauri-apps/api/event');
+      unlisten = await listen<{ status: string; data?: { downloaded: number; contentLength?: number }; error?: string }>('tauri://update-status', (event) => {
+        const { status, data, error } = event.payload;
+        if (status === 'DOWNLOADING' && data) {
+          const { downloaded, contentLength } = data;
+          if (contentLength && contentLength > 0) {
+            const pct = Math.round((downloaded / contentLength) * 100);
+            setDownloadProgress(pct);
+          }
+          const mbDownloaded = (downloaded / 1024 / 1024).toFixed(1);
+          const mbTotal = contentLength ? ` / ${(contentLength / 1024 / 1024).toFixed(1)} MB` : '';
+          setDownloadStatus(`Downloading ${mbDownloaded}${mbTotal}`);
+        } else if (status === 'INSTALLING') {
+          setDownloadStatus('Installing update...');
+          setDownloadProgress(100);
+        } else if (status === 'ERROR') {
+          throw new Error(error || 'Update failed');
+        }
+      });
+
       const { installUpdate } = await import('@tauri-apps/api/updater');
       await installUpdate();
     } catch (err) {
       toast({ title: 'Update failed', description: String(err), variant: 'destructive' });
       setUpdating(false);
+      setShowUpgradeConfirm(false);
+    } finally {
+      if (unlisten) unlisten();
     }
   };
 
@@ -138,13 +194,16 @@ export default function SettingsDialog() {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground relative"
         >
           <Settings className="h-4 w-4" />
           Settings
+          {updateInfo?.available && (
+            <Circle className="absolute right-1 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-green-500 fill-green-500" />
+          )}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
@@ -232,20 +291,31 @@ export default function SettingsDialog() {
             <div className="flex flex-col gap-2">
               <ChangePasswordDialog />
               <ResetVaultDialog />
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start gap-2 text-xs"
-                onClick={checkForUpdates}
-                disabled={checking}
-              >
-                <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
-                {checking ? 'Checking...' : 'Check for Updates'}
-              </Button>
-              {updateInfo && updateInfo.available && (
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2 text-xs"
+                  onClick={checkForUpdates}
+                  disabled={checking}
+                >
+                  <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
+                  {checking ? 'Checking...' : 'Check for Updates'}
+                </Button>
+                {updateInfo?.available && (
+                  <Circle className="absolute -top-1 -right-1 h-3 w-3 text-green-500 fill-green-500" />
+                )}
+              </div>
+              {checking && (
+                <div className="flex items-center justify-center py-2">
+                  <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground ml-2">Checking for updates...</span>
+                </div>
+              )}
+              {!checking && updateInfo && updateInfo.available && (
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
                   <div className="flex items-center gap-1.5">
-                    <RotateCcw className="h-3.5 w-3.5 text-primary" />
+                    <Circle className="h-3 w-3 text-green-500 fill-green-500" />
                     <span className="text-xs font-medium">Update available</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -259,15 +329,24 @@ export default function SettingsDialog() {
                       <ExternalLink className="h-3 w-3" />
                       Open Release
                     </Button>
-                    <Button variant="default" size="sm" className="gap-1 h-7 text-[10px]" onClick={handleInstallUpdate} disabled={updating}>
+                    <Button variant="default" size="sm" className="gap-1 h-7 text-[10px]" onClick={() => setShowUpgradeConfirm(true)} disabled={updating}>
                       <Download className="h-3 w-3" />
                       {updating ? 'Installing...' : 'Download & Install'}
                     </Button>
                   </div>
                 </div>
               )}
-              {updateInfo && !updateInfo.available && (
+              {!checking && updateInfo && !updateInfo.available && (
                 <p className="text-xs text-center text-muted-foreground">You're up to date</p>
+              )}
+              {!checking && !updateInfo && updateError && (
+                <div className="space-y-1">
+                  <p className="text-xs text-center text-muted-foreground">Could not check for updates</p>
+                  <p className="text-[10px] text-center text-muted-foreground/60">{updateError}</p>
+                </div>
+              )}
+              {!checking && !updateInfo && !updateError && (
+                <p className="text-xs text-center text-muted-foreground">Could not check for updates</p>
               )}
           </div>
           </div>
@@ -303,7 +382,106 @@ export default function SettingsDialog() {
         </div>
       </DialogContent>
     </Dialog>
+
+    <UpgradeConfirmDialog
+      open={showUpgradeConfirm || updating}
+      onOpenChange={(v) => { if (!updating) setShowUpgradeConfirm(v); }}
+      currentVersion={updateInfo?.currentVersion ?? ''}
+      latestVersion={updateInfo?.latestVersion ?? ''}
+      onConfirm={handleInstallUpdate}
+      updating={updating}
+      downloadProgress={downloadProgress}
+      downloadStatus={downloadStatus}
+    />
     </>
+  );
+}
+
+function UpgradeConfirmDialog({
+  open,
+  onOpenChange,
+  currentVersion,
+  latestVersion,
+  onConfirm,
+  updating,
+  downloadProgress,
+  downloadStatus,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentVersion: string;
+  latestVersion: string;
+  onConfirm: () => Promise<void>;
+  updating: boolean;
+  downloadProgress: number;
+  downloadStatus: string;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={updating ? () => {} : onOpenChange}>
+      <DialogContent className="sm:max-w-[380px]" onPointerDownOutside={updating ? (e) => e.preventDefault() : undefined}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5 text-primary" />
+            {updating ? 'Downloading Update' : 'Upgrade ENVEIL'}
+          </DialogTitle>
+          <DialogDescription>
+            {updating
+              ? `Downloading and installing v${latestVersion} in the background.`
+              : `Download and install v${latestVersion} to get the latest features and fixes.`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 pt-2">
+          <div className="rounded-lg border bg-muted/50 p-3 text-sm space-y-1">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Current version</span>
+              <span className="font-medium">v{currentVersion}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">New version</span>
+              <span className="font-medium text-primary">v{latestVersion}</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">{downloadStatus || 'Waiting...'}</span>
+              {updating && <span className="font-medium">{downloadProgress}%</span>}
+            </div>
+            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${downloadProgress}%` }}
+              />
+            </div>
+          </div>
+
+          {!updating && (
+            <p className="text-xs text-muted-foreground">
+              The application will download the update and restart automatically.
+            </p>
+          )}
+
+          <div className="flex gap-2 justify-end pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              disabled={updating}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onConfirm}
+              disabled={updating}
+            >
+              {updating ? 'Downloading...' : 'Download & Install'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

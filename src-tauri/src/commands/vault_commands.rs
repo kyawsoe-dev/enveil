@@ -1141,5 +1141,6 @@ pub fn read_env_file(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn get_app_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
+    let version = env!("CARGO_PKG_VERSION").to_string();
+    version
 }
