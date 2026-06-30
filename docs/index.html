@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ENVEIL Documentation</title>
+    <meta
+      name="description"
+      content="ENVEIL is a secure desktop vault for managing .env files, secrets, project commands, diffs, and LAN sync."
+    />
+    <meta property="og:title" content="ENVEIL Documentation" />
+    <meta
+      property="og:description"
+      content="Secure centralized .env and secret vault for desktop development."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://kyawsoe-dev.github.io/enveil/" />
+    <meta
+      property="og:image"
+      content="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/screenshots/dashboard.png"
+    />
+    <link rel="icon" href="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/desktop/public/logo-mark-128.png" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #090b10;
+        --panel: #111620;
+        --panel-soft: #151c28;
+        --text: #eef4ff;
+        --muted: #9eabba;
+        --line: #263142;
+        --accent: #42d39e;
+        --accent-2: #76a9ff;
+        --warn: #ffc857;
+        --shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 12% 10%, rgba(66, 211, 158, 0.16), transparent 28rem),
+          radial-gradient(circle at 84% 8%, rgba(118, 169, 255, 0.18), transparent 26rem),
+          linear-gradient(180deg, #080a0f 0%, #0b1018 46%, #0d1118 100%);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.6;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .shell {
+        width: min(1180px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(9, 11, 16, 0.78);
+        backdrop-filter: blur(18px);
+      }
+
+      .nav-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 68px;
+        gap: 20px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-decoration: none;
+      }
+
+      .brand img {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .nav-links a {
+        text-decoration: none;
+      }
+
+      .nav-links a:hover {
+        color: var(--text);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
+        gap: 46px;
+        align-items: center;
+        padding: 76px 0 46px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 16px;
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.08;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 680px;
+        font-size: clamp(44px, 7vw, 88px);
+      }
+
+      h2 {
+        margin: 0 0 18px;
+        font-size: clamp(28px, 4vw, 46px);
+      }
+
+      h3 {
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+
+      .lead {
+        max-width: 660px;
+        margin: 22px 0 0;
+        color: var(--muted);
+        font-size: 19px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 30px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 18px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #04120d;
+        font-weight: 800;
+        text-decoration: none;
+      }
+
+      .button.secondary {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.14);
+        color: var(--text);
+      }
+
+      .hero-shot {
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .hero-shot img,
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      section {
+        padding: 58px 0;
+      }
+
+      .section-head {
+        max-width: 760px;
+        margin-bottom: 28px;
+      }
+
+      .section-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 17px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .card {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        background: rgba(17, 22, 32, 0.76);
+        padding: 20px;
+      }
+
+      .card p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .shot {
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .shot figcaption {
+        padding: 12px 14px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      figure {
+        margin: 0;
+      }
+
+      .steps {
+        display: grid;
+        gap: 12px;
+        counter-reset: steps;
+      }
+
+      .step {
+        position: relative;
+        display: grid;
+        grid-template-columns: 46px 1fr;
+        gap: 14px;
+        align-items: start;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        background: rgba(17, 22, 32, 0.68);
+        padding: 18px;
+      }
+
+      .step::before {
+        counter-increment: steps;
+        content: counter(steps);
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: rgba(66, 211, 158, 0.14);
+        color: var(--accent);
+        font-weight: 800;
+      }
+
+      .step p {
+        margin: 4px 0 0;
+        color: var(--muted);
+      }
+
+      code,
+      pre {
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, ui-monospace, monospace;
+      }
+
+      code {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        padding: 2px 6px;
+        color: #d6f9ec;
+      }
+
+      pre {
+        overflow: auto;
+        margin: 18px 0 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        background: #070a0f;
+        padding: 16px;
+        color: #d6f9ec;
+      }
+
+      .two-col {
+        display: grid;
+        grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+        gap: 22px;
+        align-items: start;
+      }
+
+      .list {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .list li {
+        border-left: 3px solid var(--accent-2);
+        padding-left: 12px;
+        color: var(--muted);
+      }
+
+      .footer {
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 30px 0 46px;
+        color: var(--muted);
+      }
+
+      @media (max-width: 920px) {
+        .hero,
+        .two-col {
+          grid-template-columns: 1fr;
+        }
+
+        .hero {
+          padding-top: 48px;
+        }
+
+        .grid,
+        .gallery {
+          grid-template-columns: 1fr;
+        }
+
+        .nav-links {
+          display: none;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .shell {
+          width: min(100% - 24px, 1180px);
+        }
+
+        h1 {
+          font-size: 42px;
+        }
+
+        .actions,
+        .button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="#top" aria-label="ENVEIL home">
+          <img src="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/desktop/public/logo-mark-128.png" alt="" />
+          <span>ENVEIL</span>
+        </a>
+        <div class="nav-links" aria-label="Primary navigation">
+          <a href="#features">Features</a>
+          <a href="#screenshots">Screenshots</a>
+          <a href="#security">Security</a>
+          <a href="#development">Development</a>
+          <a href="https://github.com/kyawsoe-dev/enveil">GitHub</a>
+        </div>
+      </div>
+    </nav>
+
+    <main id="top">
+      <header class="shell hero">
+        <div>
+          <p class="eyebrow">Centralized .env and secret vault</p>
+          <h1>Secure environment management for desktop development.</h1>
+          <p class="lead">
+            ENVEIL keeps project secrets encrypted, searchable, exportable, diffable, and ready for local
+            commands without leaking them into your global shell environment.
+          </p>
+          <div class="actions">
+            <a class="button" href="https://github.com/kyawsoe-dev/enveil/releases/latest">Download latest</a>
+            <a class="button secondary" href="https://github.com/kyawsoe-dev/enveil">View source</a>
+          </div>
+        </div>
+        <figure class="hero-shot">
+          <img
+            src="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/screenshots/dashboard.png"
+            alt="ENVEIL dashboard showing encrypted vault project analytics"
+          />
+        </figure>
+      </header>
+
+      <section id="features" class="shell">
+        <div class="section-head">
+          <h2>What ENVEIL Handles</h2>
+          <p>
+            One desktop app for the secret-heavy parts of daily development: vault storage, project env
+            files, local command running, diffing, history, and LAN sharing.
+          </p>
+        </div>
+        <div class="grid">
+          <article class="card">
+            <h3>Encrypted Vault</h3>
+            <p>Master password based Argon2id key derivation with ChaCha20Poly1305 encrypted storage.</p>
+          </article>
+          <article class="card">
+            <h3>Project Env Editing</h3>
+            <p>Create projects, bulk import keys, drag in .env files, export values, and generate .env.example.</p>
+          </article>
+          <article class="card">
+            <h3>Temp .env Linking</h3>
+            <p>Create secure temporary .env files and link them into project folders for local tooling.</p>
+          </article>
+          <article class="card">
+            <h3>Terminal Runner</h3>
+            <p>Run saved commands with decrypted variables injected only into the child process.</p>
+          </article>
+          <article class="card">
+            <h3>Diff and History</h3>
+            <p>Compare projects, compare against .env files, and restore automatic env snapshots.</p>
+          </article>
+          <article class="card">
+            <h3>LAN Sync</h3>
+            <p>Share selected projects with teammates on the same network using per-project share passwords.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="screenshots" class="shell">
+        <div class="section-head">
+          <h2>Screenshots</h2>
+          <p>The app is built for repeated work: dense project views, quick search, clear diffs, and direct controls.</p>
+        </div>
+        <div class="gallery">
+          <figure class="shot">
+            <img src="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/screenshots/env-table.png" alt="Environment variable table" />
+            <figcaption>Inline env editing, bulk import, export, copy, and multi-select actions.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/screenshots/diff-view.png" alt="Project diff view" />
+            <figcaption>Side-by-side project and .env file comparison.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/screenshots/terminal-runner.png" alt="Terminal runner" />
+            <figcaption>Run project commands with vault env vars injected into the process.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="https://raw.githubusercontent.com/kyawsoe-dev/enveil/main/screenshots/lan-sync.png" alt="LAN sync screen" />
+            <figcaption>Discover nearby ENVEIL peers and sync shared projects over the local network.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="security" class="shell">
+        <div class="two-col">
+          <div class="section-head">
+            <h2>Security Model</h2>
+            <p>
+              ENVEIL is designed for local-first secret handling. Secrets are decrypted only after vault
+              unlock and are never written to your global environment.
+            </p>
+          </div>
+          <ul class="list">
+            <li>Argon2id derives a 32-byte key from the master password.</li>
+            <li>ChaCha20Poly1305 provides authenticated encryption for the vault payload.</li>
+            <li>The encrypted vault file is stored in the operating system config directory.</li>
+            <li>Auto-lock can clean up temporary env files and stop running child processes.</li>
+            <li>LAN project sharing is protected with per-project share passwords.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="development" class="shell">
+        <div class="section-head">
+          <h2>Development</h2>
+          <p>ENVEIL uses Tauri v1 for the Rust desktop shell and Next.js 14 for the frontend.</p>
+        </div>
+        <div class="steps">
+          <article class="step">
+            <div>
+              <h3>Install frontend dependencies</h3>
+              <p>Install the Next.js dependencies inside the desktop app folder.</p>
+              <pre><code>cd desktop
+npm install</code></pre>
+            </div>
+          </article>
+          <article class="step">
+            <div>
+              <h3>Run the desktop app</h3>
+              <p>The Tauri dev command starts the Next.js dev server and opens the desktop window.</p>
+              <pre><code>cargo tauri dev</code></pre>
+            </div>
+          </article>
+          <article class="step">
+            <div>
+              <h3>Build release bundles</h3>
+              <p>The frontend exports statically to <code>desktop/out/</code>, which Tauri loads in the webview.</p>
+              <pre><code>cargo tauri build</code></pre>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="shell">
+        <div class="section-head">
+          <h2>Publish This Documentation</h2>
+          <p>Use GitHub Pages directly from this repository. No copy step into another repo is needed.</p>
+        </div>
+        <div class="card">
+          <h3>GitHub Pages settings</h3>
+          <p>
+            Open <code>kyawsoe-dev/enveil</code> on GitHub, then go to
+            <code>Settings -> Pages</code>. Set the source to <code>Deploy from a branch</code>,
+            branch <code>main</code>, folder <code>/docs</code>. After GitHub finishes deploying,
+            the site will be available at <code>https://kyawsoe-dev.github.io/enveil/</code>.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="shell">
+        ENVEIL is developed by Kyaw Soe and released under the MIT License.
+      </div>
+    </footer>
+  </body>
+</html>
