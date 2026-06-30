@@ -19,14 +19,14 @@ use crate::models::{DiffResult, Project, Vault};
 use crate::storage::{delete_vault_file, load_vault, save_vault};
 
 pub struct TerminalState {
-    pub pid: Mutex<Option<u32>>,
+    pub child: Mutex<Option<Arc<Mutex<Option<std::process::Child>>>>>,
     pub cwds: Mutex<HashMap<String, PathBuf>>,
 }
 
 impl Default for TerminalState {
     fn default() -> Self {
         Self {
-            pid: Mutex::new(None),
+            child: Mutex::new(None),
             cwds: Mutex::new(HashMap::new()),
         }
     }
@@ -55,12 +55,50 @@ fn validate_path(path: &str) -> Result<std::path::PathBuf, String> {
     let canonical = std::fs::canonicalize(path)
         .map_err(|e| format!("Invalid path: {}", e))?;
     let path_str = canonical.to_string_lossy();
-    let blocked = ["/proc/", "/sys/", "/dev/", "/etc/"];
-    for b in &blocked {
+    let lower = path_str.to_lowercase();
+
+    // Unix system paths (Linux / macOS)
+    let unix_system = [
+        "/proc/",
+        "/sys/",
+        "/dev/",
+        "/etc/",
+        "/boot/",
+        "/lost+found",
+        "/root/",
+        "/run/",
+        "/snap/",
+        "/System/",
+        "/Library/",
+        "/private/",
+        "/cores/",
+    ];
+    for b in &unix_system {
         if path_str.starts_with(b) || path_str.contains(b) {
-            return Err(format!("Access denied: path under {} is not allowed", b));
+            return Err(format!("Access denied: system path is not allowed"));
         }
     }
+
+    // Windows system paths
+    let win_system = [
+        r"c:\windows",
+        r"c:\program files",
+        r"c:\program files (x86)",
+        r"c:\programdata",
+        r"c:\recovery",
+        r"c:\$recycle.bin",
+        r"c:\system volume information",
+        r"c:\boot",
+        r"c:\config.msi",
+        r"c:\drivers",
+        r"c:\system32",
+    ];
+    for b in &win_system {
+        if lower.starts_with(b) {
+            return Err(format!("Access denied: system path is not allowed"));
+        }
+    }
+
     Ok(canonical)
 }
 
@@ -90,16 +128,32 @@ fn validate_command(command: &str) -> Result<(), String> {
 
 fn validate_output_path(path: &str) -> Result<std::path::PathBuf, String> {
     let p = std::path::Path::new(path);
-    // Check the parent directory
     let parent = p.parent().unwrap_or(std::path::Path::new("."));
     if parent.exists() {
         let canonical = std::fs::canonicalize(parent)
             .map_err(|e| format!("Invalid parent directory: {}", e))?;
         let parent_str = canonical.to_string_lossy();
-        let blocked = ["/proc/", "/sys/", "/dev/", "/etc/"];
-        for b in &blocked {
+        let lower = parent_str.to_lowercase();
+
+        let unix_system = [
+            "/proc/", "/sys/", "/dev/", "/etc/", "/boot/",
+            "/lost+found", "/root/", "/run/", "/snap/",
+            "/System/", "/Library/", "/private/", "/cores/",
+        ];
+        for b in &unix_system {
             if parent_str.starts_with(b) || parent_str.contains(b) {
-                return Err(format!("Access denied: path under {} is not allowed", b));
+                return Err("Access denied: system path is not allowed".into());
+            }
+        }
+
+        let win_system = [
+            r"c:\windows", r"c:\program files", r"c:\program files (x86)",
+            r"c:\programdata", r"c:\recovery", r"c:\$recycle.bin",
+            r"c:\system volume information", r"c:\boot", r"c:\system32",
+        ];
+        for b in &win_system {
+            if lower.starts_with(b) {
+                return Err("Access denied: system path is not allowed".into());
             }
         }
     }
@@ -113,8 +167,11 @@ pub fn initialize_vault(
     state: tauri::State<AppState>,
     password: String,
 ) -> Result<(), String> {
-    if password.is_empty() {
-        return Err("Password must not be empty".into());
+    if password.len() < crate::crypto::key_derivation::MIN_PASSWORD_LENGTH {
+        return Err(format!(
+            "Password must be at least {} characters",
+            crate::crypto::key_derivation::MIN_PASSWORD_LENGTH
+        ));
     }
 
     let vault = Vault::new();
@@ -144,26 +201,13 @@ pub fn unlock_vault(
     })?;
 
     {
-        let mut pid_guard = terminal_state.pid.lock().map_err(|e| e.to_string())?;
-        if let Some(pid) = pid_guard.take() {
-            #[cfg(unix)]
-            {
-                let _ = Command::new("kill")
-                    .arg("-9")
-                    .arg(format!("-{}", pid))
-                    .output();
-                let _ = Command::new("kill")
-                    .arg("-9")
-                    .arg(pid.to_string())
-                    .output();
-            }
-            #[cfg(windows)]
-            {
-                let _ = Command::new("taskkill")
-                    .arg("/F")
-                    .arg("/PID")
-                    .arg(pid.to_string())
-                    .output();
+        let mut child_guard = terminal_state.child.lock().map_err(|e| e.to_string())?;
+        if let Some(child_arc) = child_guard.take() {
+            if let Ok(mut inner) = child_arc.lock() {
+                if let Some(ref mut child) = *inner {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                }
             }
         }
     }
@@ -228,28 +272,7 @@ pub fn save_project(
 }
 
 fn chrono_now() -> String {
-    #[cfg(target_os = "windows")]
-    {
-        // Fallback: use a simple timestamp format
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let d = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
-        format!("{}", d.as_secs())
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        // Use the `date` command as a portable way to get formatted time
-        std::process::Command::new("date")
-            .arg("+%Y-%m-%d %H:%M:%S")
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| s.trim().to_string())
-            .unwrap_or_else(|| {
-                use std::time::{SystemTime, UNIX_EPOCH};
-                let d = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
-                format!("{}", d.as_secs())
-            })
-    }
+    chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
 #[tauri::command]
@@ -315,6 +338,12 @@ pub fn change_password(
     old_password: String,
     new_password: String,
 ) -> Result<(), String> {
+    if new_password.len() < crate::crypto::key_derivation::MIN_PASSWORD_LENGTH {
+        return Err(format!(
+            "Password must be at least {} characters",
+            crate::crypto::key_derivation::MIN_PASSWORD_LENGTH
+        ));
+    }
     let vault = load_vault(&old_password).map_err(|e| e.to_string())?;
     save_vault(&vault, &new_password).map_err(|e| e.to_string())?;
 
@@ -426,7 +455,6 @@ pub fn run_command_stream(
     };
 
     let mut child: std::process::Child;
-    let child_pid: u32;
     #[cfg(unix)]
     {
         child = Command::new("sh")
@@ -439,7 +467,6 @@ pub fn run_command_stream(
             .process_group(0)
             .spawn()
             .map_err(|e| format!("Failed to execute command: {}", e))?;
-        child_pid = child.id();
     }
     #[cfg(windows)]
     {
@@ -451,20 +478,24 @@ pub fn run_command_stream(
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| format!("Failed to execute command: {}", e))?;
-        child_pid = child.id();
     }
+
+    // Take stdout/stderr before moving child into shared state
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+
+    // Wrap child in shared state so both this thread and stop_command can access it
+    let child_arc = Arc::new(Mutex::new(Some(child)));
+
     {
-        let mut pid_guard = terminal_state.pid.lock().map_err(|e| e.to_string())?;
-        *pid_guard = Some(child_pid);
+        let mut child_guard = terminal_state.child.lock().map_err(|e| e.to_string())?;
+        *child_guard = Some(Arc::clone(&child_arc));
     }
 
     let window_out = window.clone();
     let pid_out = project_id.clone();
 
     std::thread::spawn(move || {
-        let stdout = child.stdout.take();
-        let stderr = child.stderr.take();
-
         let win_err = window_out.clone();
         let pid_err = pid_out.clone();
 
@@ -498,14 +529,17 @@ pub fn run_command_stream(
 
         let _ = err_handle.join();
 
-        let status = child.wait();
+        // Wait on child through shared state
+        let mut child_lock = child_arc.lock().unwrap();
+        let status = child_lock.as_mut().and_then(|c| c.wait().ok());
         let _ = window_out.emit("terminal:done", serde_json::json!({
-            "code": status.ok().and_then(|s| s.code()),
+            "code": status.and_then(|s| s.code()),
             "project_id": pid_out.clone(),
         }));
 
-        if let Ok(mut pid_guard) = app_handle.state::<TerminalState>().pid.lock() {
-            *pid_guard = None;
+        // Clear terminal state
+        if let Ok(mut state_child) = app_handle.state::<TerminalState>().child.lock() {
+            *state_child = None;
         }
     });
 
@@ -516,29 +550,12 @@ pub fn run_command_stream(
 pub fn stop_command(
     terminal_state: tauri::State<TerminalState>,
 ) -> Result<(), String> {
-    let pid = {
-        let mut pid_guard = terminal_state.pid.lock().map_err(|e| e.to_string())?;
-        pid_guard.take()
-    };
-    if let Some(pid) = pid {
-        #[cfg(unix)]
-        {
-            let _ = Command::new("kill")
-                .arg("-9")
-                .arg(format!("-{}", pid))
-                .output();
-            let _ = Command::new("kill")
-                .arg("-9")
-                .arg(pid.to_string())
-                .output();
-        }
-        #[cfg(windows)]
-        {
-            let _ = Command::new("taskkill")
-                .arg("/F")
-                .arg("/PID")
-                .arg(pid.to_string())
-                .output();
+    let child_opt = terminal_state.child.lock().map_err(|e| e.to_string())?.take();
+    if let Some(child_arc) = child_opt {
+        let mut child_lock = child_arc.lock().unwrap();
+        if let Some(ref mut child) = *child_lock {
+            let _ = child.kill();
+            let _ = child.wait();
         }
     }
     Ok(())
@@ -565,6 +582,9 @@ pub fn generate_temp_env(
 
         let temp_dir = std::env::temp_dir().join(format!("enveil_{}", &project_id));
         std::fs::create_dir_all(&temp_dir).map_err(|e| format!("Failed to create temp dir: {}", e))?;
+        #[cfg(unix)]
+        std::fs::set_permissions(&temp_dir, std::fs::Permissions::from_mode(0o700))
+            .map_err(|e| format!("Failed to set temp dir permissions: {}", e))?;
 
         let env_path = temp_dir.join(".env");
         let content: String = project
@@ -581,8 +601,16 @@ pub fn generate_temp_env(
 
         if let Some(ref sym_path_str) = symlink_path {
             let sym_path = std::path::Path::new(sym_path_str);
-            if sym_path.exists() {
-                std::fs::remove_file(sym_path).map_err(|e| format!("Failed to remove existing symlink target: {}", e))?;
+            // Validate symlink parent directory to prevent symlink planting outside allowed paths
+            if let Some(parent) = sym_path.parent() {
+                let parent_str = parent.to_string_lossy();
+                if parent_str.starts_with("/proc/") || parent_str.starts_with("/sys/") || parent_str.starts_with("/dev/") || parent_str.starts_with("/etc/") {
+                    return Err("Access denied: symlink target in blocked directory".into());
+                }
+            }
+            // Remove existing symlink atomically
+            if sym_path.exists() || sym_path.is_symlink() {
+                std::fs::remove_file(sym_path).ok();
             }
             #[cfg(unix)]
             std::os::unix::fs::symlink(&env_path, sym_path)
@@ -607,10 +635,14 @@ pub fn generate_temp_env(
     use std::time::Duration;
 
     let (tx, rx) = mpsc::channel();
-    let mut watcher = match RecommendedWatcher::new(tx, Config::default()) {
+    let mut watcher = match RecommendedWatcher::new(
+        move |res: notify::Result<notify::Event>| {
+            let _ = tx.send(res);
+        },
+        Config::default(),
+    ) {
         Ok(w) => Some(w),
         Err(_) => {
-            // watcher failed — still store TempEnvInfo so link works, just no auto-sync
             None
         }
     };
@@ -1099,4 +1131,10 @@ pub fn import_vault(
 
     save_vault(vault, &password).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub fn read_env_file(path: String) -> Result<String, String> {
+    let validated = validate_path(&path)?;
+    std::fs::read_to_string(&validated).map_err(|e| format!("Failed to read file: {}", e))
 }

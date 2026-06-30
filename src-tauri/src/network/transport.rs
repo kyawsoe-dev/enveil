@@ -1,24 +1,50 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const MAX_MESSAGE_SIZE: usize = 10 * 1024 * 1024; // 10 MiB
 const TCP_TIMEOUT: Duration = Duration::from_secs(30);
+const MAX_CONCURRENT_CONNECTIONS: usize = 16;
+const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(1);
+const RATE_LIMIT_MAX: usize = 5;
 
 use super::types::{PeerInfo, ProjectSummary, SyncMessage};
 use crate::crypto::encryption::{decrypt_payload, encrypt_payload};
 use crate::models::{Project, SecurePayload, Vault};
 
+struct RateLimiter {
+    timestamps: Vec<Instant>,
+}
+
+impl RateLimiter {
+    fn new() -> Self {
+        RateLimiter { timestamps: Vec::new() }
+    }
+
+    fn allow(&mut self) -> bool {
+        let now = Instant::now();
+        self.timestamps.retain(|t| now.duration_since(*t) < RATE_LIMIT_WINDOW);
+        if self.timestamps.len() >= RATE_LIMIT_MAX {
+            return false;
+        }
+        self.timestamps.push(now);
+        true
+    }
+}
+
 pub struct SyncTransport {
     listener: Option<TcpListener>,
+    active_connections: Arc<AtomicUsize>,
 }
 
 impl SyncTransport {
     pub fn new() -> Self {
         SyncTransport {
             listener: None,
+            active_connections: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -32,14 +58,33 @@ impl SyncTransport {
             .try_clone()
             .map_err(|e| format!("Failed to clone listener: {}", e))?;
         let vault_clone = Arc::clone(&vault);
+        let connections = Arc::clone(&self.active_connections);
+        let rate_limiter = Arc::new(Mutex::new(RateLimiter::new()));
 
         thread::spawn(move || {
             for stream in listener_clone.incoming() {
                 match stream {
                     Ok(stream) => {
+                        {
+                            let mut limiter = rate_limiter.lock().unwrap();
+                            if !limiter.allow() {
+                                eprintln!("[enveil] Rate limit exceeded, dropping connection");
+                                continue;
+                            }
+                        }
+
+                        let current = connections.load(Ordering::Relaxed);
+                        if current >= MAX_CONCURRENT_CONNECTIONS {
+                            eprintln!("[enveil] Max concurrent connections reached, dropping connection");
+                            continue;
+                        }
+                        connections.fetch_add(1, Ordering::Relaxed);
+
                         let vault = Arc::clone(&vault_clone);
+                        let conn_counter = Arc::clone(&connections);
                         thread::spawn(move || {
                             handle_client(stream, vault);
+                            conn_counter.fetch_sub(1, Ordering::Relaxed);
                         });
                     }
                     Err(_) => break,
@@ -50,8 +95,6 @@ impl SyncTransport {
         self.listener = Some(listener);
         Ok(actual_port)
     }
-
-
 }
 
 fn send_message(stream: &mut TcpStream, msg: &SyncMessage) -> Result<(), String> {
@@ -89,6 +132,7 @@ fn read_message(stream: &mut TcpStream) -> Result<SyncMessage, String> {
 fn handle_client(mut stream: TcpStream, vault: Arc<Mutex<Option<Vault>>>) {
     let _ = stream.set_read_timeout(Some(TCP_TIMEOUT));
     let _ = stream.set_write_timeout(Some(TCP_TIMEOUT));
+    let _ = stream.set_nodelay(true);
     loop {
         let msg = match read_message(&mut stream) {
             Ok(msg) => msg,
@@ -167,7 +211,6 @@ fn handle_client(mut stream: TcpStream, vault: Arc<Mutex<Option<Vault>>>) {
 
 pub fn request_peer_projects(peer: &PeerInfo) -> Result<Vec<ProjectSummary>, String> {
     let addr = format!("{}:{}", peer.ip, peer.port);
-    eprintln!("[enveil] request_peer_projects connecting to {}", addr);
     let mut stream = TcpStream::connect(&addr)
         .map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
     let _ = stream.set_read_timeout(Some(TCP_TIMEOUT));
@@ -175,7 +218,7 @@ pub fn request_peer_projects(peer: &PeerInfo) -> Result<Vec<ProjectSummary>, Str
 
     let hello = SyncMessage::Hello {
         device_name: "ENVEIL".to_string(),
-        app_version: "0.1.2".to_string(),
+        app_version: "0.1.3".to_string(),
     };
     send_message(&mut stream, &hello)?;
     read_message(&mut stream)?;
@@ -184,7 +227,6 @@ pub fn request_peer_projects(peer: &PeerInfo) -> Result<Vec<ProjectSummary>, Str
 
     match read_message(&mut stream)? {
         SyncMessage::ProjectListResponse { projects } => {
-            eprintln!("[enveil] Got {} projects from {}", projects.len(), addr);
             Ok(projects)
         }
         SyncMessage::Error { message } => Err(format!("Peer error: {}", message)),
@@ -194,7 +236,6 @@ pub fn request_peer_projects(peer: &PeerInfo) -> Result<Vec<ProjectSummary>, Str
 
 pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Result<Project, String> {
     let addr = format!("{}:{}", peer.ip, peer.port);
-    eprintln!("[enveil] request_project connecting to {} (project={})", addr, project_id);
     let mut stream = TcpStream::connect(&addr)
         .map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
     let _ = stream.set_read_timeout(Some(TCP_TIMEOUT));
@@ -202,7 +243,7 @@ pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Res
 
     let hello = SyncMessage::Hello {
         device_name: "ENVEIL".to_string(),
-        app_version: "0.1.2".to_string(),
+        app_version: "0.1.3".to_string(),
     };
     send_message(&mut stream, &hello)?;
     read_message(&mut stream)?;
@@ -222,7 +263,6 @@ pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Res
             description,
             env_vars,
         } => {
-            eprintln!("[enveil] Got project '{}' from {}", name, addr);
             Ok(Project {
                 id,
                 name,
@@ -246,7 +286,6 @@ pub fn request_project(peer: &PeerInfo, project_id: &str, password: &str) -> Res
             let plaintext = decrypt_payload(&payload, password).map_err(|e| e.to_string())?;
             let project: Project = serde_json::from_slice(&plaintext)
                 .map_err(|e| format!("Failed to parse decrypted project: {}", e))?;
-            eprintln!("[enveil] Got encrypted project '{}' from {}", project.name, addr);
             Ok(project)
         }
         SyncMessage::Error { message } => Err(format!("Peer error: {}", message)),

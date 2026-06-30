@@ -51,6 +51,14 @@ pub struct Project {
     pub history: Vec<EnvSnapshot>,
 }
 
+impl Drop for Project {
+    fn drop(&mut self) {
+        if let Some(ref mut pw) = self.share_password {
+            zeroize_str(pw);
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvSnapshot {
     pub timestamp: i64,
@@ -63,4 +71,12 @@ pub struct SecurePayload {
     pub salt: Vec<u8>,
     pub nonce: Vec<u8>,
     pub ciphertext: Vec<u8>,
+}
+
+fn zeroize_str(s: &mut String) {
+    let bytes = unsafe { s.as_mut_vec() };
+    for b in bytes.iter_mut() {
+        *b = 0;
+    }
+    s.clear();
 }

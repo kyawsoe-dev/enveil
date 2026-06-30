@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useVault } from './VaultProvider';
 import { Key, Lock, Unlock, Eye, EyeOff, FileText, Trash2, RefreshCw, ExternalLink, Loader2, ChevronDown, FolderOpen, GitCompare, Terminal, History, Play, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,41 +50,48 @@ export default function ProjectView() {
     }
   };
 
+  const selectedId = selected?.id;
+
   useEffect(() => {
     setTempEnvPath(null);
     setSymlinkPath(null);
     setEnvSuffix('');
-    if (!selected) return;
-    tauri.getTempEnvStatus(selected.id).then((status) => {
+    if (!selectedId) return;
+    tauri.getTempEnvStatus(selectedId).then((status) => {
       if (status) {
         setTempEnvPath(status.temp_path);
         setSymlinkPath(status.symlink_path);
       } else {
-        const saved = localStorage.getItem(`enveil_symlink_${selected.id}`);
+        const saved = localStorage.getItem(`enveil_symlink_${selectedId}`);
         if (saved) setSymlinkPath(saved);
       }
     }).catch(() => {});
-  }, [selected?.id]);
+  }, [selectedId]);
 
-  const envVarsKey = JSON.stringify(selected?.env_vars ?? {});
+  const envCount = Object.keys(selected?.env_vars ?? {}).length;
   useEffect(() => {
     if (!selected || !tempEnvPath) return;
     const timer = setTimeout(() => {
       tauri.regenerateTempEnv(selected.id).catch(() => {});
     }, 300);
     return () => clearTimeout(timer);
-  }, [envVarsKey, selected?.id, tempEnvPath]);
+  }, [envCount, selected?.id, tempEnvPath]);
 
   useEffect(() => {
+    let cancelled = false;
     let unsub: (() => void) | undefined;
     import('@tauri-apps/api/event').then(({ listen }) => {
+      if (cancelled) return;
       listen<{ project_id: string }>('vault:env-synced', (event) => {
         if (event.payload.project_id === state.selectedProjectId) {
           refreshVault();
         }
       }).then((fn) => { unsub = fn; });
     });
-    return () => { unsub?.(); };
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   }, [state.selectedProjectId]);
 
   if (!selected) {
@@ -186,7 +193,9 @@ export default function ProjectView() {
     if (!selected || !symlinkPath || !runCmd.trim()) return;
     const parent = symlinkPath.replace(/[\\/]+$/, '').split(/[\\/]/).slice(0, -1).join('/');
     if (!parent) return;
-    setTerminalCommand(`cd ${parent} && ${runCmd.trim()}`);
+    // Sanitize: strip null bytes and limit length
+    const sanitized = runCmd.trim().replace(/\0/g, '').slice(0, 4096);
+    setTerminalCommand(`cd "${parent}" && ${sanitized}`);
     setView('terminal');
   };
 

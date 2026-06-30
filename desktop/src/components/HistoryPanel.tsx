@@ -290,6 +290,7 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
                           key={snap.timestamp}
                           className="flex items-start gap-2 border-b border-border/30 px-3 py-2.5"
                         >
+                          <span className="w-5 shrink-0 pt-0.5 text-right text-[10px] tabular-nums text-muted-foreground/50">{i + 1}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               <Clock className="h-3 w-3 shrink-0 text-muted-foreground" />

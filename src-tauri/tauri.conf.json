@@ -20,10 +20,10 @@
         "all": true
       },
       "path": {
-        "all": true
+        "all": false
       },
       "shell": {
-        "all": true,
+        "all": false,
         "open": true
       },
       "clipboard": {

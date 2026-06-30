@@ -273,8 +273,8 @@ export default function EnvTable() {
             setDropState({ phase: 'importing' });
             (async () => {
               try {
-                const { readTextFile } = await import('@tauri-apps/api/fs');
-                const content = await readTextFile(envPath);
+                const { invoke } = await import('@tauri-apps/api/tauri');
+                const content: string = await invoke('read_env_file', { path: envPath });
                 const fileName = envPath.split(/[\\/]/).pop() || '.env';
                 const parsed = parseEnvContent(content);
                 const parsedCount = Object.keys(parsed).length;
@@ -373,8 +373,11 @@ export default function EnvTable() {
                 <span>Imported {dropState.count} variable{dropState.count !== 1 ? 's' : ''}</span>
               </div>
             ) : dropState.phase === 'error' ? (
-              <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-card px-4 py-2 text-sm shadow-lg">
-                <span className="text-destructive">Import failed</span>
+              <div className="flex flex-col items-center gap-2 rounded-lg border border-destructive/50 bg-card px-4 py-3 text-sm shadow-lg">
+                <span className="text-destructive font-medium">Import failed</span>
+                {dropState.message && (
+                  <span className="text-xs text-muted-foreground text-center max-w-[300px]">{dropState.message}</span>
+                )}
               </div>
             ) : (
               <div className="rounded-lg border-2 border-dashed border-primary/50 bg-card/80 px-16 py-16 text-center shadow-lg">
@@ -487,7 +490,7 @@ export default function EnvTable() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full table-fixed">
           <thead className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
             <tr className="text-left text-xs text-muted-foreground">
               <th className="w-8 px-3 py-2 font-medium">
@@ -500,9 +503,9 @@ export default function EnvTable() {
                 />
               </th>
               <th className="w-8 px-3 py-2 font-medium">#</th>
-              <th className="px-3 py-2 font-medium">Key</th>
+              <th className="w-[35%] px-3 py-2 font-medium">Key</th>
               <th className="px-3 py-2 font-medium">Value</th>
-              <th className="w-28 px-3 py-2 font-medium">Actions</th>
+              <th className="w-28 pl-0 py-2 font-medium text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -779,17 +782,20 @@ function EnvVarRow({
         <div className="max-w-[400px] overflow-x-auto scrollbar-thin">
           <span
             className={cn(
-              "font-mono text-xs transition-all",
-              revealed
-                ? "text-env-value"
-                : "text-transparent [text-shadow:0_0_8px_hsl(215_20%_65%/0.6)]",
+              "font-mono text-xs transition-all select-none relative inline-block",
+              revealed ? "text-env-value" : "text-transparent",
             )}
           >
             {value}
+            {!revealed && (
+              <span className="absolute inset-0 text-muted-foreground/40" aria-hidden="true">
+                {'•'.repeat(Math.min(value.length, 32))}
+              </span>
+            )}
           </span>
         </div>
       </td>
-      <td className="px-3 py-2">
+      <td className="pl-0 py-2">
         <div className="flex items-center gap-1">
           <EditEnvVarDialog
             project={project}

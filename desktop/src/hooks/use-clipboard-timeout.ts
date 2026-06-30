@@ -30,7 +30,7 @@ export function useClipboardTimeout() {
 
     if (timeoutSec > 0) {
       timerRef.current = setTimeout(() => {
-        writeClipboard(' ');
+        writeClipboard('');
       }, timeoutSec * 1000);
     }
   }, []);
