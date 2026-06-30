@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings, RefreshCw, Download, Upload, AlertTriangle } from 'lucide-react';
+import { Settings, RefreshCw, Download, Upload, AlertTriangle, ExternalLink, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -21,7 +21,7 @@ export default function SettingsDialog() {
   const { state, autoLockTimeout, changeAutoLockTimeout, clipboardTimeout, changeClipboardTimeout, refreshVault, getPassword } = useVault();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [updating, setUpdating] = useState(false);
   const [checking, setChecking] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
   const [restoreMode, setRestoreMode] = useState<'replace' | 'merge'>('replace');
@@ -30,28 +30,50 @@ export default function SettingsDialog() {
   const [restoring, setRestoring] = useState(false);
   const [showRestoreSuccess, setShowRestoreSuccess] = useState(false);
   const [restoreSuccessTitle, setRestoreSuccessTitle] = useState('');
+  const [updateInfo, setUpdateInfo] = useState<{
+    available: boolean;
+    currentVersion: string;
+    latestVersion: string;
+    releaseNotes?: string;
+  } | null>(null);
 
   const checkForUpdates = async () => {
     setChecking(true);
-    setUpdateStatus(null);
+    setUpdateInfo(null);
     try {
-      const { checkUpdate, installUpdate } = await import('@tauri-apps/api/updater');
+      const { checkUpdate } = await import('@tauri-apps/api/updater');
       const { shouldUpdate, manifest } = await checkUpdate();
+      const { invoke } = await import('@tauri-apps/api/tauri');
+      const currentVersion: string = await invoke('get_app_version');
       if (shouldUpdate && manifest) {
-        setUpdateStatus(`Update v${manifest.version} available`);
-        const install = confirm(`Update v${manifest.version} is available. Download now?`);
-        if (install) {
-          await installUpdate();
-        }
+        setUpdateInfo({ available: true, currentVersion, latestVersion: manifest.version, releaseNotes: manifest.body });
       } else {
-        setUpdateStatus('You\'re up to date');
-        setTimeout(() => setUpdateStatus(null), 3000);
+        setUpdateInfo({ available: false, currentVersion, latestVersion: currentVersion });
       }
     } catch {
-      setUpdateStatus('App is running in browser');
-      setTimeout(() => setUpdateStatus(null), 3000);
+      setUpdateInfo(null);
     } finally {
       setChecking(false);
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    setUpdating(true);
+    try {
+      const { installUpdate } = await import('@tauri-apps/api/updater');
+      await installUpdate();
+    } catch (err) {
+      toast({ title: 'Update failed', description: String(err), variant: 'destructive' });
+      setUpdating(false);
+    }
+  };
+
+  const handleOpenRelease = async () => {
+    try {
+      const { open } = await import('@tauri-apps/api/shell');
+      await open('https://github.com/kyawsoe-dev/enveil/releases/latest');
+    } catch {
+      // fallback
     }
   };
 
@@ -220,8 +242,32 @@ export default function SettingsDialog() {
                 <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
                 {checking ? 'Checking...' : 'Check for Updates'}
               </Button>
-              {updateStatus && (
-                <p className="text-xs text-center text-muted-foreground">{updateStatus}</p>
+              {updateInfo && updateInfo.available && (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <RotateCcw className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs font-medium">Update available</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    ENVEIL v{updateInfo.latestVersion} is available. You are using v{updateInfo.currentVersion}.
+                  </p>
+                  {updateInfo.releaseNotes && (
+                    <p className="text-[10px] text-muted-foreground/70 line-clamp-2">{updateInfo.releaseNotes}</p>
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    <Button variant="outline" size="sm" className="gap-1 h-7 text-[10px]" onClick={handleOpenRelease}>
+                      <ExternalLink className="h-3 w-3" />
+                      Open Release
+                    </Button>
+                    <Button variant="default" size="sm" className="gap-1 h-7 text-[10px]" onClick={handleInstallUpdate} disabled={updating}>
+                      <Download className="h-3 w-3" />
+                      {updating ? 'Installing...' : 'Download & Install'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {updateInfo && !updateInfo.available && (
+                <p className="text-xs text-center text-muted-foreground">You're up to date</p>
               )}
           </div>
           </div>

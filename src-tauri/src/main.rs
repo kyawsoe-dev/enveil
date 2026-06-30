@@ -65,6 +65,7 @@ fn main() {
             commands::vault_commands::export_vault,
             commands::vault_commands::import_vault,
             commands::vault_commands::read_env_file,
+            commands::vault_commands::get_app_version,
             commands::sync_commands::start_lan_sync,
             commands::sync_commands::stop_lan_sync,
             commands::sync_commands::get_peers,
