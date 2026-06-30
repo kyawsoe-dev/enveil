@@ -11,7 +11,7 @@ import HistoryPanel from './HistoryPanel';
 import * as tauri from '@/lib/tauri';
 
 export default function ProjectView() {
-  const { state, saveProject, runFileDiff, setView, setTerminalCommand, refreshVault } = useVault();
+  const { state, saveProject, runFileDiff, setView, setTerminalCommand, refreshVault, getPassword } = useVault();
   const selected = state.vault?.projects.find((p) => p.id === state.selectedProjectId);
   const [editingSharePwd, setEditingSharePwd] = useState(false);
   const [sharePwdInput, setSharePwdInput] = useState('');
@@ -125,7 +125,7 @@ export default function ProjectView() {
     try {
       const s = suffix ?? envSuffix;
       if (symlinkPath && !suffix) {
-        await tauri.generateTempEnv(selected.id, symlinkPath, state.password);
+        await tauri.generateTempEnv(selected.id, symlinkPath, getPassword());
         const status = await tauri.getTempEnvStatus(selected.id);
         if (status) setTempEnvPath(status.temp_path);
         return;
@@ -140,7 +140,7 @@ export default function ProjectView() {
       const dirPath = String(selectedDir);
       const baseName = s ? `.env.${s}` : '.env';
       const envPath = dirPath.endsWith('/') ? `${dirPath}${baseName}` : `${dirPath}/${baseName}`;
-      const path = await tauri.generateTempEnv(selected.id, envPath, state.password);
+      const path = await tauri.generateTempEnv(selected.id, envPath, getPassword());
       localStorage.setItem(`enveil_symlink_${selected.id}`, envPath);
       setTempEnvPath(path);
       setSymlinkPath(envPath);

@@ -18,7 +18,7 @@ import ResetVaultDialog from './ResetVaultDialog';
 import * as tauri from '@/lib/tauri';
 
 export default function SettingsDialog() {
-  const { state, autoLockTimeout, changeAutoLockTimeout, clipboardTimeout, changeClipboardTimeout, refreshVault } = useVault();
+  const { state, autoLockTimeout, changeAutoLockTimeout, clipboardTimeout, changeClipboardTimeout, refreshVault, getPassword } = useVault();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
@@ -64,7 +64,7 @@ export default function SettingsDialog() {
         filters: [{ name: 'ENVEIL Backup', extensions: ['vault'] }],
       });
       if (!path) return;
-      await tauri.exportVault(state.password, path as string);
+      await tauri.exportVault(getPassword(), path as string);
       toast({ title: 'Vault exported successfully' });
     } catch (err) {
       toast({ title: 'Backup failed', description: String(err), variant: 'destructive' });
@@ -92,7 +92,7 @@ export default function SettingsDialog() {
     if (!restoreFilePath) return;
     setRestoring(true);
     try {
-      await tauri.importVault(state.password, restoreFilePath, restoreMode);
+      await tauri.importVault(getPassword(), restoreFilePath, restoreMode);
       await refreshVault();
       setShowRestoreConfirm(false);
       setRestoreSuccessTitle(restoreMode === 'replace' ? 'Vault replaced successfully' : 'Vault merged successfully');

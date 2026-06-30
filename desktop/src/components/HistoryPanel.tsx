@@ -28,7 +28,7 @@ function getStoredWidth(): number {
 }
 
 export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
-  const { state, saveProject } = useVault();
+  const { state, saveProject, getPassword } = useVault();
   const [history, setHistory] = useState<EnvSnapshot[]>([]);
   const [restoring, setRestoring] = useState(false);
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
@@ -80,7 +80,7 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
 
   const handleConfirmRestore = async () => {
     if (previewIdx === null) return;
-    const pw = state.password;
+    const pw = getPassword();
     if (!pw || !selected) return;
     setRestoring(true);
     try {

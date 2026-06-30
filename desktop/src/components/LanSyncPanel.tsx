@@ -21,7 +21,7 @@ import * as lan from '@/lib/lan';
 import type { PeerInfo, ProjectSummary } from '@/lib/lan';
 
 export default function LanSyncPanel() {
-  const { state, refreshVault } = useVault();
+  const { state, refreshVault, getPassword } = useVault();
   const [syncState, setSyncState] = useState<lan.SyncState | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncErr, setSyncErr] = useState<string | null>(null);
@@ -90,12 +90,12 @@ export default function LanSyncPanel() {
   }, [status.active, peersKey]);
 
   const syncProject = async (peer: PeerInfo, projectId: string) => {
-    if (!state.password) return;
+    if (!getPassword()) return;
     setLoading(true);
     setSyncErr(null);
     setSuccessMsg(null);
     try {
-      await lan.syncProjectFromPeer(peer.device_name, projectId, state.password, '');
+      await lan.syncProjectFromPeer(peer.device_name, projectId, getPassword(), '');
       await refreshVault();
       setSuccessMsg(`Project synced from ${peer.device_name}`);
       setTimeout(() => setSuccessMsg(null), 3000);

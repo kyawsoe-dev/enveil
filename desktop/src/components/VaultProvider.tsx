@@ -6,6 +6,7 @@ import {
   useContext,
   useMemo,
   useReducer,
+  useRef,
   useState,
   useEffect,
   type ReactNode,
@@ -17,7 +18,6 @@ import { useToast } from '@/hooks/use-toast';
 interface VaultState {
   isUnlocked: boolean;
   vault: Vault | null;
-  password: string;
   selectedProjectId: string | null;
   activeView: AppView;
   diffResult: DiffResult | null;
@@ -33,7 +33,7 @@ interface VaultState {
 
 type Action =
   | { type: 'UNLOCK_START' }
-  | { type: 'UNLOCK_SUCCESS'; vault: Vault; password: string }
+  | { type: 'UNLOCK_SUCCESS'; vault: Vault }
   | { type: 'LOCK' }
   | { type: 'SET_VAULT'; vault: Vault }
   | { type: 'SELECT_PROJECT'; id: string | null }
@@ -51,7 +51,6 @@ type Action =
 const initialState: VaultState = {
   isUnlocked: false,
   vault: null,
-  password: '',
   selectedProjectId: null,
   activeView: 'dashboard',
   diffResult: null,
@@ -74,7 +73,6 @@ function reducer(state: VaultState, action: Action): VaultState {
         ...state,
         isUnlocked: true,
         vault: action.vault,
-        password: action.password,
         isLoading: false,
         error: null,
         selectedProjectId: null,
@@ -132,12 +130,14 @@ interface VaultContextValue {
   changeClipboardTimeout: (seconds: number) => void;
   refreshVault: () => Promise<void>;
   setTerminalCommand: (command: string | null) => void;
+  getPassword: () => string;
 }
 
 const VaultContext = createContext<VaultContextValue | null>(null);
 
 export function VaultProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const passwordRef = useRef<string>('');
   const { toast } = useToast();
   const [autoLockTimeout, setAutoLockTimeout] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -163,6 +163,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const lock = useCallback(() => {
+    passwordRef.current = '';
     tauri.stopCommand().catch(() => {});
     tauri.cleanupAllTempEnvs().catch(() => {});
     dispatch({ type: 'LOCK' });
@@ -207,7 +208,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'UNLOCK_START' });
     try {
       const vault = await tauri.unlockVault(password);
-      dispatch({ type: 'UNLOCK_SUCCESS', vault, password });
+      passwordRef.current = password;
+      dispatch({ type: 'UNLOCK_SUCCESS', vault });
     } catch (err) {
       dispatch({ type: 'SET_ERROR', error: String(err) });
       throw err;
@@ -219,7 +221,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     try {
       await tauri.initializeVault(password);
       const vault = await tauri.unlockVault(password);
-      dispatch({ type: 'UNLOCK_SUCCESS', vault, password });
+      passwordRef.current = password;
+      dispatch({ type: 'UNLOCK_SUCCESS', vault });
     } catch (err) {
       dispatch({ type: 'SET_ERROR', error: String(err) });
       throw err;
@@ -244,10 +247,11 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
   const saveProject = useCallback(
     async (project: Project) => {
-      if (!state.password) return;
+      const pw = passwordRef.current;
+      if (!pw) return;
       dispatch({ type: 'SET_LOADING', isLoading: true });
       try {
-        await tauri.saveProject(state.password, project);
+        await tauri.saveProject(pw, project);
         if (state.vault) {
           const updated: Vault = {
             ...state.vault,
@@ -264,15 +268,16 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_LOADING', isLoading: false });
       }
     },
-    [state.password, state.vault],
+    [state.vault],
   );
 
   const deleteProject = useCallback(
     async (projectId: string) => {
-      if (!state.password) return;
+      const pw = passwordRef.current;
+      if (!pw) return;
       dispatch({ type: 'SET_LOADING', isLoading: true });
       try {
-        await tauri.deleteProject(state.password, projectId);
+        await tauri.deleteProject(pw, projectId);
         if (state.vault) {
           const updated: Vault = {
             ...state.vault,
@@ -289,7 +294,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_LOADING', isLoading: false });
       }
     },
-    [state.password, state.vault, state.selectedProjectId],
+    [state.vault, state.selectedProjectId],
   );
 
   const duplicateProject = useCallback(
@@ -339,6 +344,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_TERMINAL_CMD', command });
   }, []);
 
+  const getPassword = useCallback(() => passwordRef.current, []);
+
   const runDiff = useCallback(async (a: string, b: string) => {
     dispatch({ type: 'SET_DIFF', a, b });
     try {
@@ -384,6 +391,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       changeClipboardTimeout,
       refreshVault,
       setTerminalCommand,
+      getPassword,
     }),
     [
       state,
@@ -405,6 +413,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       changeClipboardTimeout,
       refreshVault,
       setTerminalCommand,
+      getPassword,
     ],
   );
 

@@ -30,6 +30,12 @@ pub fn encrypt_payload(plaintext: &[u8], password: &str) -> Result<SecurePayload
 }
 
 pub fn decrypt_payload(payload: &SecurePayload, password: &str) -> Result<Vec<u8>, VaultError> {
+    if payload.nonce.len() != 12 {
+        return Err(VaultError::General("Invalid nonce length".into()));
+    }
+    if payload.salt.len() != 32 {
+        return Err(VaultError::General("Invalid salt length".into()));
+    }
     let key = derive_key(password, &payload.salt)?;
     let cipher = ChaCha20Poly1305::new(Key::from_slice(&key));
     let nonce = Nonce::from_slice(&payload.nonce);

@@ -47,6 +47,65 @@ pub struct TempEnvStatus {
     pub symlink_path: Option<String>,
 }
 
+fn validate_path(path: &str) -> Result<std::path::PathBuf, String> {
+    let path = std::path::Path::new(path);
+    if !path.exists() {
+        return Err("Path does not exist".into());
+    }
+    let canonical = std::fs::canonicalize(path)
+        .map_err(|e| format!("Invalid path: {}", e))?;
+    let path_str = canonical.to_string_lossy();
+    let blocked = ["/proc/", "/sys/", "/dev/", "/etc/"];
+    for b in &blocked {
+        if path_str.starts_with(b) || path_str.contains(b) {
+            return Err(format!("Access denied: path under {} is not allowed", b));
+        }
+    }
+    Ok(canonical)
+}
+
+fn validate_command(command: &str) -> Result<(), String> {
+    let lower = command.to_lowercase();
+    let blocked = [
+        "rm -rf /",
+        "rm -rf /*",
+        ":(){ :|:& };:",
+        "mkfs",
+        "dd if=",
+        "> /dev/",
+        "poweroff",
+        "shutdown",
+        "reboot",
+        "halt",
+        "init 0",
+        "init 6",
+    ];
+    for b in &blocked {
+        if lower.contains(b) {
+            return Err(format!("Blocked command pattern: {}", b));
+        }
+    }
+    Ok(())
+}
+
+fn validate_output_path(path: &str) -> Result<std::path::PathBuf, String> {
+    let p = std::path::Path::new(path);
+    // Check the parent directory
+    let parent = p.parent().unwrap_or(std::path::Path::new("."));
+    if parent.exists() {
+        let canonical = std::fs::canonicalize(parent)
+            .map_err(|e| format!("Invalid parent directory: {}", e))?;
+        let parent_str = canonical.to_string_lossy();
+        let blocked = ["/proc/", "/sys/", "/dev/", "/etc/"];
+        for b in &blocked {
+            if parent_str.starts_with(b) || parent_str.contains(b) {
+                return Err(format!("Access denied: path under {} is not allowed", b));
+            }
+        }
+    }
+    Ok(p.to_path_buf())
+}
+
 pub struct TempEnvState(pub Mutex<HashMap<String, TempEnvInfo>>);
 
 #[tauri::command]
@@ -270,6 +329,7 @@ pub fn run_command(
     command: String,
     project_id: String,
 ) -> Result<String, String> {
+    validate_command(&command)?;
     let inner = state.0.lock().map_err(|e| e.to_string())?;
     let vault = inner.as_ref().ok_or("Vault is not unlocked")?;
     let project = vault
@@ -313,6 +373,7 @@ pub fn run_command_stream(
     command: String,
     project_id: String,
 ) -> Result<(), String> {
+    validate_command(&command)?;
     let window = app_handle.get_window("main").ok_or("Main window not found")?;
     let envs = {
         let inner = vault_state.0.lock().map_err(|e| e.to_string())?;
@@ -737,6 +798,7 @@ pub fn get_temp_env_status(
 
 #[tauri::command]
 pub fn open_folder(path: String) -> Result<(), String> {
+    let _validated = validate_path(&path)?;
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
@@ -767,6 +829,7 @@ pub fn open_folder(path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn open_in_terminal(path: String) -> Result<(), String> {
+    let _validated = validate_path(&path)?;
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
@@ -815,6 +878,7 @@ pub fn generate_env_example(
         .join("\n");
 
     if let Some(ref path) = output_path {
+        let _validated = validate_output_path(path)?;
         if let Some(parent) = std::path::Path::new(path).parent() {
             std::fs::create_dir_all(parent).ok();
         }
@@ -836,6 +900,7 @@ pub fn diff_project_with_file(
         .find_project(&project_id)
         .ok_or_else(|| format!("Project '{}' not found", project_id))?;
 
+    let _validated = validate_path(&file_path)?;
     let content = std::fs::read_to_string(&file_path)
         .map_err(|e| format!("Failed to read file: {}", e))?;
 
@@ -988,6 +1053,7 @@ pub fn export_vault(
     password: String,
     output_path: String,
 ) -> Result<(), String> {
+    let _validated = validate_output_path(&output_path)?;
     let vault = {
         let guard = state.0.lock().map_err(|e| e.to_string())?;
         guard.clone().ok_or("Vault is not unlocked")?
@@ -1005,6 +1071,7 @@ pub fn import_vault(
     input_path: String,
     mode: String,
 ) -> Result<(), String> {
+    let _validated = validate_path(&input_path)?;
     let data = std::fs::read(&input_path).map_err(|e| e.to_string())?;
     let payload: crate::models::SecurePayload =
         serde_json::from_slice(&data).map_err(|e| e.to_string())?;

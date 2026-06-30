@@ -27,7 +27,7 @@ import * as lan from '@/lib/lan';
 import type { PeerInfo, ProjectSummary } from '@/lib/lan';
 
 export default function LanSyncView() {
-  const { state, setView, refreshVault } = useVault();
+  const { state, setView, refreshVault, getPassword } = useVault();
   const [syncState, setSyncState] = useState<lan.SyncState | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncErr, setSyncErr] = useState<string | null>(null);
@@ -128,7 +128,7 @@ export default function LanSyncView() {
   }, [status.active, peersKey, refreshTick]);
 
   const confirmSync = async () => {
-    if (!requestingProject || !state.password) return;
+    if (!requestingProject || !getPassword()) return;
     const { peer, id, name } = requestingProject;
     setRequestingProject(null);
     setSharePassword('');
@@ -137,7 +137,7 @@ export default function LanSyncView() {
     setSyncErr(null);
     setSuccessMsg(null);
     try {
-      await lan.syncProjectFromPeer(peer.device_name, id, state.password, sharePassword);
+      await lan.syncProjectFromPeer(peer.device_name, id, getPassword(), sharePassword);
       await refreshVault();
       setSuccessMsg(`"${name}" synced from ${peer.device_name}`);
       setTimeout(() => setSuccessMsg(null), 3000);
@@ -149,7 +149,7 @@ export default function LanSyncView() {
   };
 
   const syncProject = (peer: PeerInfo, project: ProjectSummary) => {
-    if (!state.password) return;
+    if (!getPassword()) return;
     setRequestingProject({ peer, id: project.id, name: project.name });
     setSharePassword('');
     setShowSharePwd(false);
