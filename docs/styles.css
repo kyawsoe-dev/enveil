@@ -3,7 +3,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("../desktop/public/fonts/BitcountSingle-SemiBold.ttf") format("truetype");
+  src: url("fonts/BitcountSingle-SemiBold.ttf") format("truetype");
 }
 
 :root {
