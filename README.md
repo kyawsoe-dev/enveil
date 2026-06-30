@@ -14,6 +14,11 @@ A desktop application for securely managing environment variables and secrets ac
   </a>
 </p>
 
+<p align="center">
+  <img alt="Downloads" src="https://img.shields.io/github/downloads/kyawsoe-dev/enveil/total?style=for-the-badge&logo=github&label=Downloads" />
+  <img alt="Views" src="https://img.shields.io/badge/views-614-8A2BE2?style=for-the-badge&logo=github" />
+</p>
+
 ## Download
 
 Grab the latest installer for your platform from the [releases page](https://github.com/kyawsoe-dev/enveil/releases/latest) (`.dmg` for macOS, `.msi` for Windows, `.deb` for Linux).

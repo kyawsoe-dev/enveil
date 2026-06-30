@@ -337,7 +337,7 @@ export default function SettingsDialog() {
                 </div>
               )}
               {!checking && updateInfo && !updateInfo.available && (
-                <p className="text-xs text-center text-muted-foreground">You're up to date</p>
+                <p className="text-xs text-center text-muted-foreground mt-2">You're up to date.</p>
               )}
               {!checking && !updateInfo && updateError && (
                 <div className="space-y-1">
