@@ -941,7 +941,7 @@ pre {
   }
 
   h1 {
-    max-width: 100%;
+    white-space: nowrap;
   }
 
   .grid,
@@ -1015,7 +1015,7 @@ pre {
   }
 
   h1 {
-    font-size: clamp(26px, 7vw, 40px);
+    font-size: clamp(20px, 5.5vw, 35px);
     line-height: 1.1;
   }
 
