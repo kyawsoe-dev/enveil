@@ -432,15 +432,15 @@ body.menu-open {
 }
 
 .hero-content {
-  text-align: left;
+  text-align: center;
 }
 
 .hero-content h1 {
-  margin: 0;
+  margin: 0 auto;
 }
 
 .hero-content .lead {
-  margin: 22px 0 0;
+  margin: 22px auto 0;
 }
 
 @media (min-width: 921px) {
