@@ -459,7 +459,7 @@ h3 {
   max-width: 660px;
   margin: 22px 0 0;
   color: var(--text);
-  font-family: "Bitcount Single", Inter, ui-sans-serif, system-ui, sans-serif;
+  /* font-family: "Bitcount Single", Inter, ui-sans-serif, system-ui, sans-serif; */
   font-weight: 400;
   font-size: 18px;
   line-height: 1.8;
@@ -942,7 +942,7 @@ pre {
   }
 
   h1 {
-    white-space: nowrap;
+    max-width: 100%;
   }
 
   .grid,
@@ -1016,9 +1016,8 @@ pre {
   }
 
   h1 {
-    font-size: 32px;
-    line-height: 1;
-    white-space: nowrap;
+    font-size: clamp(26px, 7vw, 40px);
+    line-height: 1.1;
   }
 
   .download-section {
