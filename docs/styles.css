@@ -439,7 +439,7 @@ body.menu-open {
   margin: 0 auto;
   font-family: "Bitcount Single", Inter, ui-sans-serif, system-ui, sans-serif;
   font-weight: 400;
-  color: var(--muted);
+  color: var(--text);
 }
 
 .hero-content .lead {
@@ -485,7 +485,7 @@ h3 {
 .lead {
   max-width: 660px;
   margin: 22px 0 0;
-  color: var(--muted);
+  color: var(--text);
   font-family: "Bitcount Single", Inter, ui-sans-serif, system-ui, sans-serif;
   font-weight: 400;
   font-size: 18px;
