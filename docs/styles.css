@@ -459,6 +459,7 @@ h3 {
   max-width: 660px;
   margin: 22px 0 0;
   color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-weight: 400;
   font-size: 18px;
   line-height: 1.8;
@@ -940,10 +941,6 @@ pre {
     padding-top: 48px;
   }
 
-  h1 {
-    white-space: nowrap;
-  }
-
   .grid,
   .gallery {
     grid-template-columns: 1fr;
@@ -1015,13 +1012,13 @@ pre {
   }
 
   h1 {
-    font-size: clamp(20px, 5.5vw, 35px);
-    line-height: 1.1;
+    font-size: 28px;
+    line-height: 1.15;
   }
 
   .lead {
     text-align: justify;
-    font-size: 19px;
+    font-size: 16px;
   }
 
   .download-section {
