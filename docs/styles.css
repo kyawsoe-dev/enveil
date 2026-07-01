@@ -444,6 +444,13 @@ body.menu-open {
   max-width: 620px;
 }
 
+@media (min-width: 921px) {
+  .hero-content .lead {
+    max-width: none;
+    white-space: nowrap;
+  }
+}
+
 h1,
 h2 {
   line-height: 1.08;
