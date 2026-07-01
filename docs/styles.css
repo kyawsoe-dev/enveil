@@ -942,7 +942,7 @@ pre {
   }
 
   h1 {
-    font-size: 58px;
+    white-space: nowrap;
   }
 
   .grid,
