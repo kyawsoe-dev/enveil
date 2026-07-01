@@ -28,31 +28,6 @@
   --shadow: 0 26px 80px rgba(0, 0, 0, 0.36);
 }
 
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme]) {
-    color-scheme: light;
-    --bg: #f7f8fb;
-    --surface: rgba(255, 255, 255, 0.78);
-    --surface-strong: #ffffff;
-    --surface-soft: rgba(5, 12, 22, 0.055);
-    --text: #2d3a4f;
-    --muted: #64748b;
-    --line: rgba(16, 22, 35, 0.11);
-    --line-strong: rgba(16, 22, 35, 0.18);
-    --accent: #168967;
-    --accent-2: #2e6ee6;
-    --accent-3: #9b6918;
-    --button-text: #ffffff;
-    --nav-bg: rgba(247, 248, 251, 0.78);
-    --code-bg: #f0f3f8;
-    --hero-glow:
-      radial-gradient(circle at 16% 10%, rgba(36, 181, 132, 0.16), transparent 30rem),
-      radial-gradient(circle at 86% 4%, rgba(64, 125, 238, 0.16), transparent 30rem),
-      linear-gradient(180deg, #f8fafc 0%, #f2f5f9 48%, #ffffff 100%);
-    --shadow: 0 28px 90px rgba(21, 30, 45, 0.16);
-  }
-}
-
 html[data-theme="light"] {
   color-scheme: light;
   --bg: #f7f8fb;
@@ -315,13 +290,11 @@ body.menu-open {
   height: 18px;
 }
 
-.theme-toggle .theme-icon-system,
 .theme-toggle .theme-icon-light,
 .theme-toggle .theme-icon-dark {
   display: none;
 }
 
-.theme-toggle[data-theme="system"] .theme-icon-system,
 .theme-toggle[data-theme="light"] .theme-icon-light,
 .theme-toggle[data-theme="dark"] .theme-icon-dark {
   display: block;

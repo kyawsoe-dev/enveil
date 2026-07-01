@@ -1,5 +1,5 @@
 const themeToggle = document.querySelector("#theme-toggle");
-const savedTheme = localStorage.getItem("enveil-docs-theme") || "system";
+const savedTheme = localStorage.getItem("enveil-docs-theme") || "dark";
 const menuButton = document.querySelector(".menu-button");
 const mobileMenu = document.querySelector("#mobile-menu");
 const mobileBackdrop = document.querySelector(".mobile-backdrop");
@@ -12,10 +12,10 @@ const downloadCombo = document.querySelector("#download-combo");
 const sectionLinks = document.querySelectorAll("[data-section]");
 const mobileNavQuery = window.matchMedia("(max-width: 920px)");
 
-const THEME_CYCLE = ["system", "light", "dark"];
+const THEME_CYCLE = ["dark", "light"];
 
 function setTheme(choice) {
-  if (choice === "system") {
+  if (choice === "dark") {
     document.documentElement.removeAttribute("data-theme");
   } else {
     document.documentElement.setAttribute("data-theme", choice);
@@ -28,7 +28,7 @@ function setTheme(choice) {
 }
 
 themeToggle?.addEventListener("click", () => {
-  const current = localStorage.getItem("enveil-docs-theme") || "system";
+  const current = localStorage.getItem("enveil-docs-theme") || "dark";
   const next = THEME_CYCLE[(THEME_CYCLE.indexOf(current) + 1) % THEME_CYCLE.length];
   setTheme(next);
 });
