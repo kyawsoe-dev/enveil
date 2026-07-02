@@ -443,6 +443,7 @@ if (backToTop) {
   const ctx = canvas.getContext("2d");
   let W, H;
   let mouseX = -9999, mouseY = -9999;
+  let hasInteraction = false;
   let particles = [];
   let frameId;
 
@@ -457,30 +458,38 @@ if (backToTop) {
   document.addEventListener("mousemove", (e) => {
     mouseX = e.clientX;
     mouseY = e.clientY;
+    hasInteraction = true;
   });
 
   document.addEventListener("touchmove", (e) => {
     const t = e.touches[0];
-    if (t) { mouseX = t.clientX; mouseY = t.clientY; }
+    if (t) { mouseX = t.clientX; mouseY = t.clientY; hasInteraction = true; }
   }, { passive: true });
 
   function rand(min, max) { return Math.random() * (max - min) + min; }
 
   function Particle() {
-    this.x = mouseX;
-    this.y = mouseY;
-    this.r = rand(3, 9);
+    if (hasInteraction) {
+      this.x = mouseX + rand(-10, 10);
+      this.y = mouseY + rand(-10, 10);
+    } else {
+      this.x = rand(0, W);
+      this.y = rand(0, H * 0.6);
+    }
+    this.r = rand(1.5, 4);
     this.rStart = this.r;
-    this.vx = rand(-3, 3);
-    this.vy = rand(-2, 0);
-    this.gravity = 0.15;
+    this.vx = rand(-1.2, 1.2);
+    this.vy = rand(-0.8, -0.2);
+    this.gravity = 0.05;
     this.bounced = false;
     this.hue = Math.random() < 0.6 ? rand(150, 170) : rand(200, 230);
-    this.light = rand(55, 85);
+    this.light = rand(70, 95);
     this.opacity = 1;
     this.life = 0;
-    this.maxLife = rand(60, 180);
-    this.bounceDecay = rand(0.7, 0.9);
+    this.maxLife = rand(40, 120);
+    this.bounceDecay = rand(0.6, 0.85);
+    this.twinkle = rand(0.02, 0.06);
+    this.twinkleDir = 1;
   }
 
   Particle.prototype.draw = function () {
@@ -491,7 +500,7 @@ if (backToTop) {
 
     const progress = this.life / this.maxLife;
     this.opacity = Math.max(0, 1 - progress);
-    this.r = this.rStart * (1 - progress * 0.5);
+    this.r = this.rStart * (1 - progress * 0.3);
 
     if (this.y + this.r > H) {
       this.y = H - this.r;
@@ -502,7 +511,8 @@ if (backToTop) {
 
     if (this.r <= 0.3 || this.opacity <= 0 || this.life > this.maxLife) return false;
 
-    ctx.globalAlpha = this.opacity * 0.5;
+    const sparkle = 0.7 + Math.sin(this.life * this.twinkle) * 0.3;
+    ctx.globalAlpha = this.opacity * 0.6 * sparkle;
     ctx.fillStyle = `hsla(${this.hue},80%,${this.light}%,1)`;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
@@ -510,22 +520,19 @@ if (backToTop) {
     return true;
   };
 
-  function spawn() {
-    for (let i = 0; i < 3; i++) {
-      particles.push(new Particle());
-    }
-  }
-
-  let spawnTimer = 0;
+  let tick = 0;
 
   function loop() {
     ctx.clearRect(0, 0, W, H);
 
-    spawnTimer++;
-    if (spawnTimer % 2 === 0) spawn();
+    tick++;
+    if (tick % 3 === 0) {
+      const count = hasInteraction ? 2 : 4;
+      for (let i = 0; i < count; i++) particles.push(new Particle());
+    }
 
     particles = particles.filter((p) => p.draw());
-    if (particles.length > 500) particles.splice(0, particles.length - 500);
+    if (particles.length > 400) particles.splice(0, particles.length - 400);
 
     frameId = requestAnimationFrame(loop);
   }
