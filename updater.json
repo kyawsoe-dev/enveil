@@ -1,11 +1,11 @@
 {
-  "version": "0.1.2",
-  "notes": "See https://github.com/kyawsoe-dev/enveil/releases/tag/v0.1.2",
-  "pub_date": "2026-06-18T08:23:01Z",
+  "version": "0.1.4",
+  "notes": "See https://github.com/kyawsoe-dev/enveil/releases/tag/v0.1.4",
+  "pub_date": "2026-07-02T00:00:00Z",
   "platforms": {
-    "darwin-x86_64": {"signature": "", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.2/ENVEIL_0.1.2_x64.dmg"},
-    "darwin-aarch64": {"signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUcHYvaFdMWmJ5b2taOWo2c1h4ZGx0ZFBwOXBLd1V1bzlhczZNb3A2cWZBOWJCR01ETnlSUEQwTFZjOUZLL1BZVEk2eGx3aExWNE14ZHl6RXVVOGl1V05URi9Mc1BIdnc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMTg1MTMwCWZpbGU6RU5WRUlMLmFwcC50YXIuZ3oKOTZCTUlYYk5BWlBIa3hLNmZzbStDdmE5RG1UbGxnd1h0MXNNZGFoa1lJKzJ6MHFHbkV0bzZFbXNrcnlVRStBblJnejlwUGNMTnZOdWx3Y2ZTZ2lWQXc9PQo=", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.2/ENVEIL_0.1.2_aarch64.dmg"},
-    "windows-x86_64": {"signature": "", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.2/ENVEIL_0.1.2_x64_en-US.msi"},
-    "linux-x86_64": {"signature": "", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.2/enveil_0.1.2_amd64.deb"}
+    "darwin-x86_64": {"signature": "", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.4/ENVEIL_0.1.4_x64.dmg"},
+    "darwin-aarch64": {"signature": "", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.4/ENVEIL_0.1.4_aarch64.dmg"},
+    "windows-x86_64": {"signature": "", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.4/ENVEIL_0.1.4_x64_en-US.msi"},
+    "linux-x86_64": {"signature": "", "url": "https://github.com/kyawsoe-dev/enveil/releases/download/v0.1.4/enveil_0.1.4_amd64.deb"}
   }
 }
