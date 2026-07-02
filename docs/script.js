@@ -468,13 +468,13 @@ if (backToTop) {
 
   function rand(min, max) { return Math.random() * (max - min) + min; }
 
-  function Particle() {
-    if (hasInteraction) {
-      this.x = mouseX + rand(-10, 10);
-      this.y = mouseY + rand(-10, 10);
+  function Particle(cx, cy) {
+    if (cx != null) {
+      this.x = cx + rand(-8, 8);
+      this.y = cy + rand(-8, 8);
     } else {
       this.x = rand(0, W);
-      this.y = rand(0, H * 0.6);
+      this.y = rand(0, H * 0.65);
     }
     this.r = rand(2.5, 6);
     this.rStart = this.r;
@@ -527,8 +527,10 @@ if (backToTop) {
 
     tick++;
     if (tick % 3 === 0) {
-      const count = hasInteraction ? 2 : 4;
-      for (let i = 0; i < count; i++) particles.push(new Particle());
+      for (let i = 0; i < 3; i++) particles.push(new Particle());
+      if (hasInteraction) {
+        for (let i = 0; i < 2; i++) particles.push(new Particle(mouseX, mouseY));
+      }
     }
 
     particles = particles.filter((p) => p.draw());
