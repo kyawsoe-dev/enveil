@@ -435,3 +435,100 @@ if (backToTop) {
   backToTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
   backToTop.toggleAttribute("data-visible", true);
 }
+
+// --- Particle wave background ---
+(function () {
+  const canvas = document.getElementById("bg-particle-wave");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  let W, H;
+  let mouseX = -9999, mouseY = -9999;
+  let particles = [];
+  let frameId;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  window.addEventListener("resize", resize);
+  resize();
+
+  document.addEventListener("mousemove", (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+
+  document.addEventListener("touchmove", (e) => {
+    const t = e.touches[0];
+    if (t) { mouseX = t.clientX; mouseY = t.clientY; }
+  }, { passive: true });
+
+  function rand(min, max) { return Math.random() * (max - min) + min; }
+
+  function Particle() {
+    this.x = mouseX;
+    this.y = mouseY;
+    this.r = rand(3, 9);
+    this.rStart = this.r;
+    this.vx = rand(-3, 3);
+    this.vy = rand(-2, 0);
+    this.gravity = 0.15;
+    this.bounced = false;
+    this.hue = Math.random() < 0.6 ? rand(150, 170) : rand(200, 230);
+    this.light = rand(55, 85);
+    this.opacity = 1;
+    this.life = 0;
+    this.maxLife = rand(60, 180);
+    this.bounceDecay = rand(0.7, 0.9);
+  }
+
+  Particle.prototype.draw = function () {
+    this.x += this.vx;
+    this.vy += this.gravity;
+    this.y += this.vy;
+    this.life++;
+
+    const progress = this.life / this.maxLife;
+    this.opacity = Math.max(0, 1 - progress);
+    this.r = this.rStart * (1 - progress * 0.5);
+
+    if (this.y + this.r > H) {
+      this.y = H - this.r;
+      this.vy *= -this.bounceDecay;
+      this.vx *= 0.96;
+      this.bounced = true;
+    }
+
+    if (this.r <= 0.3 || this.opacity <= 0 || this.life > this.maxLife) return false;
+
+    ctx.globalAlpha = this.opacity * 0.5;
+    ctx.fillStyle = `hsla(${this.hue},80%,${this.light}%,1)`;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fill();
+    return true;
+  };
+
+  function spawn() {
+    for (let i = 0; i < 3; i++) {
+      particles.push(new Particle());
+    }
+  }
+
+  let spawnTimer = 0;
+
+  function loop() {
+    ctx.clearRect(0, 0, W, H);
+
+    spawnTimer++;
+    if (spawnTimer % 2 === 0) spawn();
+
+    particles = particles.filter((p) => p.draw());
+    if (particles.length > 500) particles.splice(0, particles.length - 500);
+
+    frameId = requestAnimationFrame(loop);
+  }
+
+  loop();
+})();
