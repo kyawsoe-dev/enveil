@@ -367,31 +367,88 @@ pub fn run_command(
 
     let envs: BTreeMap<String, String> = project.env_vars.clone();
 
-    let output = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&command)
-        .envs(&envs)
-        .output()
-        .map_err(|e| format!("Failed to execute command: {}", e))?;
+    #[cfg(target_os = "macos")]
+    {
+        let output = std::process::Command::new("zsh")
+            .args(["-l", "-c", &command])
+            .envs(&envs)
+            .output()
+            .map_err(|e| format!("Failed to execute command: {}", e))?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
-    let combined = if stderr.is_empty() {
-        stdout
-    } else {
-        format!("{}{}", stdout, stderr)
-    };
+        let combined = if stderr.is_empty() {
+            stdout
+        } else {
+            format!("{}{}", stdout, stderr)
+        };
 
-    if !output.status.success() {
-        return Err(format!(
-            "Command exited with code {}:\n{}",
-            output.status.code().unwrap_or(-1),
-            combined,
-        ));
+        if !output.status.success() {
+            return Err(format!(
+                "Command exited with code {}:\n{}",
+                output.status.code().unwrap_or(-1),
+                combined,
+            ));
+        }
+
+        Ok(combined)
     }
+    #[cfg(target_os = "linux")]
+    {
+        let output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&command)
+            .envs(&envs)
+            .output()
+            .map_err(|e| format!("Failed to execute command: {}", e))?;
 
-    Ok(combined)
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+        let combined = if stderr.is_empty() {
+            stdout
+        } else {
+            format!("{}{}", stdout, stderr)
+        };
+
+        if !output.status.success() {
+            return Err(format!(
+                "Command exited with code {}:\n{}",
+                output.status.code().unwrap_or(-1),
+                combined,
+            ));
+        }
+
+        Ok(combined)
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let output = std::process::Command::new("cmd")
+            .args(["/C", &command])
+            .envs(&envs)
+            .output()
+            .map_err(|e| format!("Failed to execute command: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+        let combined = if stderr.is_empty() {
+            stdout
+        } else {
+            format!("{}{}", stdout, stderr)
+        };
+
+        if !output.status.success() {
+            return Err(format!(
+                "Command exited with code {}:\n{}",
+                output.status.code().unwrap_or(-1),
+                combined,
+            ));
+        }
+
+        Ok(combined)
+    }
 }
 
 #[tauri::command]
@@ -455,7 +512,19 @@ pub fn run_command_stream(
     };
 
     let mut child: std::process::Child;
-    #[cfg(unix)]
+    #[cfg(target_os = "macos")]
+    {
+        child = Command::new("zsh")
+            .args(["-l", "-c", &command])
+            .current_dir(&cwd)
+            .envs(&envs)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .process_group(0)
+            .spawn()
+            .map_err(|e| format!("Failed to execute command: {}", e))?;
+    }
+    #[cfg(target_os = "linux")]
     {
         child = Command::new("sh")
             .arg("-c")
