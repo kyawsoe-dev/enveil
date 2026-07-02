@@ -476,7 +476,7 @@ if (backToTop) {
       this.x = rand(0, W);
       this.y = rand(0, H * 0.6);
     }
-    this.r = rand(1.5, 4);
+    this.r = rand(2.5, 6);
     this.rStart = this.r;
     this.vx = rand(-1.2, 1.2);
     this.vy = rand(-0.8, -0.2);
