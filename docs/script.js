@@ -541,3 +541,272 @@ if (backToTop) {
 
   loop();
 })();
+
+// --- AI Chat Widget ---
+
+const AI_CFG = "_x";
+const AI_CHAT_HISTORY_KEY = "ccc";
+
+function _enc(v) { return btoa(unescape(encodeURIComponent(JSON.stringify(v)))); }
+function _dec(v) { try { return JSON.parse(decodeURIComponent(escape(atob(v)))); } catch { return null; } }
+
+const AI_SYSTEM_PROMPT = `You are an AI assistant for ENVEIL, a desktop application for securely managing environment variables and secrets across multiple projects. ONLY answer questions about ENVEIL. If asked about anything else, politely redirect to ENVEIL.
+
+ENVEIL is built with Tauri v1 (Rust backend) + Next.js 14 (TypeScript frontend). It stores secrets in an encrypted vault (Argon2id → ChaCha20Poly1305), auto-locks on inactivity, and never writes secrets to global environment variables.
+
+Key features:
+- Encrypted Vault: Master password → Argon2id → ChaCha20Poly1305 encrypted vault.bin
+- Project Management: CRUD, duplicate, search (Cmd+K), env var bulk import/export
+- Temp .env Linking: Secure temp .env (600 perms) with auto-update and auto-sync back to vault
+- Terminal Runner: Run commands with decrypted env vars injected, streaming output, per-project cwd
+- Diff & History: Compare projects or against .env files, auto-snapshots, restore any snapshot
+- LAN Sync: Share projects on same network with per-project passwords
+- Dashboard Analytics: Security Score, Vault Stats, Coverage Gaps, Most Common Vars, Stale Projects, Change Velocity, Duplicate Values, Key Categories
+- AI Assistant (OpenRouter): Chat, template generation, value validation, env docstrings, diff summaries, suggestions
+- Security: Path traversal protection, command validation, process group isolation, clipboard auto-clear
+- Vault Backup & Restore: Export/import .vault files with Merge or Replace mode
+- Multi-Select Bulk Ops: Shift-click range selection, floating action bar
+- Drag & Drop Import: Drop .env files or paste content with conflict resolution
+- Resizable sidebar (180-400px), dark/light theme, custom fonts (Bitcount Single, Inter, JetBrains Mono)
+
+For development: cd desktop && npm install, then cargo tauri dev. Build with cargo tauri build.
+For macOS: xattr -cr /Applications/ENVEIL.app if blocked.
+For Ubuntu: sudo apt install libwebkit2gtk-4.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev build-essential libssl-dev file
+
+Be concise, friendly, and helpful. If you don't know the answer, say so honestly. Never make up features or details.`;
+
+async function getAiConfig() {
+  const cached = sessionStorage.getItem(AI_CFG);
+  if (cached) {
+    const parsed = _dec(cached);
+    if (parsed) return parsed;
+  }
+
+  try {
+    const res = await fetch("https://ai-integration-api.vercel.app/enveil");
+    if (!res.ok) throw new Error("Config fetch failed");
+    const data = await res.json();
+    const config = {
+      model: atob(data.m),
+      baseUrl: atob(data.b),
+      apiKey: atob(data.a),
+    };
+    sessionStorage.setItem(AI_CFG, _enc(config));
+    return config;
+  } catch {
+    return null;
+  }
+}
+
+(async function initAiChat() {
+  const toggle = document.getElementById("ai-chat-toggle");
+  const panel = document.getElementById("ai-chat-panel");
+  const messages = document.getElementById("ai-chat-messages");
+  const input = document.getElementById("ai-chat-input");
+  const sendBtn = document.getElementById("ai-chat-send");
+  const closeBtn = document.getElementById("ai-chat-close");
+  const clearBtn = document.getElementById("ai-chat-clear");
+  const chat = document.getElementById("ai-chat");
+
+  if (!toggle || !panel || !messages || !input || !sendBtn || !chat) return;
+
+  let aiConfig = null;
+  let loading = false;
+
+  // Preload config in background
+  getAiConfig().then(c => { aiConfig = c; });
+
+  // Restore history
+  const savedHistory = localStorage.getItem(AI_CHAT_HISTORY_KEY);
+  if (savedHistory) {
+    try {
+      const history = _dec(savedHistory);
+      if (Array.isArray(history) && history.length > 0) {
+        messages.innerHTML = "";
+        history.forEach(msg => appendMessage(msg.role, msg.content, false));
+        messages.scrollTop = messages.scrollHeight;
+      }
+    } catch { /* ignore */ }
+  }
+
+  function saveHistory() {
+    const msgs = [];
+    messages.querySelectorAll(".ai-chat-msg-row:not(.ai-chat-msg-error)").forEach(el => {
+      const role = el.classList.contains("ai-chat-msg-user") ? "user" : "assistant";
+      const content = el.querySelector(".ai-chat-msg-bubble")?.textContent || "";
+      if (content) msgs.push({ role, content });
+    });
+    localStorage.setItem(AI_CHAT_HISTORY_KEY, _enc(msgs.slice(-10)));
+  }
+
+  function appendMessage(role, content, animate = true) {
+    const emptyEl = document.getElementById("ai-chat-empty");
+    if (emptyEl) emptyEl.remove();
+
+    const cls = role === "user" ? "user" : "bot";
+    const row = document.createElement("div");
+    row.className = `ai-chat-msg-row ai-chat-msg-${cls}`;
+    const avatar = document.createElement("div");
+    avatar.className = `ai-chat-msg-avatar ai-chat-msg-avatar-${cls}`;
+    avatar.innerHTML = role === "user"
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>';
+    const bubble = document.createElement("div");
+    bubble.className = "ai-chat-msg-bubble";
+    bubble.textContent = content;
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    messages.appendChild(row);
+    if (animate) messages.scrollTop = messages.scrollHeight;
+    return row;
+  }
+
+  function showTyping() {
+    const emptyEl = document.getElementById("ai-chat-empty");
+    if (emptyEl) emptyEl.remove();
+
+    const row = document.createElement("div");
+    row.className = "ai-chat-typing-indicator";
+    row.id = "ai-chat-typing";
+    const avatar = document.createElement("div");
+    avatar.className = "ai-chat-msg-avatar ai-chat-msg-avatar-bot";
+    avatar.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>';
+    const bubble = document.createElement("div");
+    bubble.className = "ai-chat-msg-bubble";
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement("span");
+      dot.className = "ai-chat-typing-dot";
+      bubble.appendChild(dot);
+    }
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    messages.appendChild(row);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function removeTyping() {
+    const el = document.getElementById("ai-chat-typing");
+    if (el) el.remove();
+  }
+
+  function showError(message) {
+    const emptyEl = document.getElementById("ai-chat-empty");
+    if (emptyEl) emptyEl.remove();
+
+    const row = document.createElement("div");
+    row.className = "ai-chat-msg-row ai-chat-msg-error";
+    const bubble = document.createElement("div");
+    bubble.className = "ai-chat-msg-bubble";
+    bubble.textContent = message;
+    row.appendChild(bubble);
+    messages.appendChild(row);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  async function sendMessage() {
+    const text = input.value.trim();
+    if (!text || loading) return;
+
+    if (!aiConfig) {
+      showError("AI service is not available right now. Please try again later.");
+      return;
+    }
+
+    input.value = "";
+    appendMessage("user", text);
+    loading = true;
+    sendBtn.disabled = true;
+    showTyping();
+
+    try {
+      // Build conversation history from DOM
+      const conversation = [{ role: "system", content: AI_SYSTEM_PROMPT }];
+      messages.querySelectorAll(".ai-chat-msg-row:not(.ai-chat-msg-error)").forEach(el => {
+        const role = el.classList.contains("ai-chat-msg-user") ? "user" : "assistant";
+        const content = el.querySelector(".ai-chat-msg-bubble")?.textContent || "";
+        if (content) conversation.push({ role, content });
+      });
+
+      const res = await fetch(`${aiConfig.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${aiConfig.apiKey}`,
+          "HTTP-Referer": window.location.origin,
+          "X-Title": "ENVEIL Docs",
+        },
+        body: JSON.stringify({
+          model: aiConfig.model,
+          messages: conversation,
+          max_tokens: 800,
+        }),
+      });
+
+      removeTyping();
+
+      if (!res.ok) {
+        throw new Error(`API error (${res.status})`);
+      }
+
+      const data = await res.json();
+      if (data.error) {
+        throw new Error(data.error.message || "API returned an error");
+      }
+      const reply = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+
+      appendMessage("assistant", reply);
+      saveHistory();
+    } catch (err) {
+      removeTyping();
+      showError(err.message === "Failed to fetch" ? "Network error — check your connection." : err.message || "Something went wrong. Please try again.");
+    } finally {
+      loading = false;
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  // Event listeners
+  toggle.addEventListener("click", () => {
+    const isOpen = chat.dataset.open === "true";
+    chat.dataset.open = isOpen ? "false" : "true";
+    if (!isOpen) {
+      // Fetch config if not loaded yet
+      if (!aiConfig) {
+        getAiConfig().then(c => { aiConfig = c; });
+      }
+      setTimeout(() => input.focus(), 200);
+    }
+  });
+
+  sendBtn.addEventListener("click", sendMessage);
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  clearBtn?.addEventListener("click", () => {
+    messages.innerHTML = `<div class="ai-chat-msg-row ai-chat-msg-bot">
+      <div class="ai-chat-msg-avatar ai-chat-msg-avatar-bot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+      </div>
+      <div class="ai-chat-msg-bubble">Hi! I can answer questions about ENVEIL — how to use it, its features, security model, and more. What would you like to know?</div>
+    </div>`;
+    localStorage.removeItem(AI_CHAT_HISTORY_KEY);
+    localStorage.removeItem("ccc");
+  });
+
+  closeBtn?.addEventListener("click", () => {
+    chat.dataset.open = "false";
+  });
+
+  // Close on Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && chat.dataset.open === "true") {
+      chat.dataset.open = "false";
+    }
+  });
+})();
