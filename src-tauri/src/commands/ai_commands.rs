@@ -13,6 +13,19 @@ fn env_var(key: &str) -> Option<String> {
     std::env::var(key).ok()
 }
 
+fn compile_time_env(key: &str) -> Option<String> {
+    match key {
+        "OPENROUTER_API_KEY" => option_env!("OPENROUTER_API_KEY").map(|s| s.to_string()),
+        "OPENROUTER_BASE_URL" => option_env!("OPENROUTER_BASE_URL").map(|s| s.to_string()),
+        "OPENROUTER_MODEL" => option_env!("OPENROUTER_MODEL").map(|s| s.to_string()),
+        _ => None,
+    }
+}
+
+fn ai_env_var(key: &str) -> Option<String> {
+    compile_time_env(key).or_else(|| env_var(key))
+}
+
 fn prepare_request(system_prompt: &str, user_content: &str, model: &str) -> Result<String, String> {
     let body = serde_json::json!({
         "model": model,
@@ -28,9 +41,9 @@ fn prepare_request(system_prompt: &str, user_content: &str, model: &str) -> Resu
 #[cfg(target_os = "macos")]
 fn call_curl(body_str: &str) -> Result<String, String> {
     let api_key =
-        env_var("OPENROUTER_API_KEY").ok_or_else(|| "OPENROUTER_API_KEY env var not set".to_string())?;
+        ai_env_var("OPENROUTER_API_KEY").ok_or_else(|| "OPENROUTER_API_KEY env var not set".to_string())?;
     let base_url =
-        env_var("OPENROUTER_BASE_URL").ok_or_else(|| "OPENROUTER_BASE_URL env var not set".to_string())?;
+        ai_env_var("OPENROUTER_BASE_URL").ok_or_else(|| "OPENROUTER_BASE_URL env var not set".to_string())?;
 
     let output = Command::new("curl")
         .args([
@@ -95,9 +108,9 @@ fn call_curl(_body_str: &str) -> Result<String, String> {
 #[tauri::command]
 pub fn get_ai_config() -> AIConfig {
     AIConfig {
-        configured: env_var("OPENROUTER_API_KEY").is_some()
-            && env_var("OPENROUTER_MODEL").is_some()
-            && env_var("OPENROUTER_BASE_URL").is_some(),
+        configured: ai_env_var("OPENROUTER_API_KEY").is_some()
+            && ai_env_var("OPENROUTER_MODEL").is_some()
+            && ai_env_var("OPENROUTER_BASE_URL").is_some(),
     }
 }
 
