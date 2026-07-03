@@ -433,7 +433,10 @@ loadReleaseBar();
 const backToTop = document.querySelector("#back-to-top");
 if (backToTop) {
   backToTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
-  backToTop.toggleAttribute("data-visible", true);
+  window.addEventListener("scroll", () => {
+    backToTop.toggleAttribute("data-visible", window.scrollY > 400);
+  }, { passive: true });
+  backToTop.toggleAttribute("data-visible", window.scrollY > 400);
 }
 
 // --- Particle wave background ---
