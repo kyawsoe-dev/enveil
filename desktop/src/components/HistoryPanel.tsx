@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  History, RotateCcw, Clock, ChevronRight, ArrowLeft, Plus, Minus, AlertTriangle, Check
+  History, RotateCcw, Clock, ChevronRight, ArrowLeft, Plus, Minus, AlertTriangle, Check, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useVault } from './VaultProvider';
 import * as tauri from '@/lib/tauri';
+import * as ai from '@/lib/ai';
 import type { EnvSnapshot } from '@/lib/types';
 
 interface HistoryPanelProps {
@@ -32,6 +33,17 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
   const [history, setHistory] = useState<EnvSnapshot[]>([]);
   const [restoring, setRestoring] = useState(false);
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    const go = () => setOnline(true);
+    const goOff = () => setOnline(false);
+    window.addEventListener('online', go);
+    window.addEventListener('offline', goOff);
+    return () => { window.removeEventListener('online', go); window.removeEventListener('offline', goOff); };
+  }, []);
   const [width, setWidth] = useState(getStoredWidth);
   const dragRef = useRef(false);
   const widthRef = useRef(width);
@@ -102,6 +114,30 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
 
   const handleBack = () => {
     setPreviewIdx(null);
+    setAiSummary(null);
+  };
+
+  const handleSummarize = async () => {
+    if (!previewChanges) return;
+    setAiSummaryLoading(true);
+    setAiSummary(null);
+    try {
+      const result = await ai.explainDiff({
+        added: previewChanges.added,
+        removed: previewChanges.removed,
+        changed: previewChanges.changed.map(([k]) => k),
+        unchanged_count: previewChanges.unchanged.length,
+      });
+      let text = result.trim();
+      if (text.startsWith('```')) {
+        text = text.replace(/^```(?:text)?\s*/i, '').replace(/\s*```$/i, '');
+      }
+      setAiSummary(text);
+    } catch {
+      setAiSummary('Failed to generate summary.');
+    } finally {
+      setAiSummaryLoading(false);
+    }
   };
 
   const timeAgo = (ts: number) => {
@@ -167,7 +203,22 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
                   <span className="text-[10px] text-muted-foreground">{timeAgo(snapshot.timestamp)}</span>
                   <span className="text-[10px] text-muted-foreground mx-0.5">·</span>
                   <span className="text-[10px] text-muted-foreground truncate">{snapshot.label}</span>
+                  <div className="flex-1" />
+                  <button
+                    onClick={handleSummarize}
+                    disabled={aiSummaryLoading || !online}
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+                    title="Generate AI summary of changes"
+                  >
+                    <Sparkles className={cn("h-3 w-3", aiSummaryLoading && "animate-pulse")} />
+                    {aiSummaryLoading ? 'Thinking...' : 'Summarize'}
+                  </button>
                 </div>
+                {aiSummary && (
+                  <div className="border-b border-border/30 px-3 py-2 bg-primary/5">
+                    <p className="text-[11px] leading-relaxed text-foreground/90">{aiSummary}</p>
+                  </div>
+                )}
 
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
                   {previewChanges && (

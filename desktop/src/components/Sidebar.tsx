@@ -19,6 +19,8 @@ import {
   Share2,
   Copy,
   Keyboard,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import UsageGuide from "./UsageGuide";
 import EditProjectDialog from "./EditProjectDialog";
@@ -30,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useVault } from "./VaultProvider";
+import * as ai from "@/lib/ai";
 import { APP_VERSION } from "@/lib/brand";
 import {
   Dialog,
@@ -373,6 +376,35 @@ function AddProjectDialog({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    const go = () => setOnline(true);
+    const goOff = () => setOnline(false);
+    window.addEventListener('online', go);
+    window.addEventListener('offline', goOff);
+    return () => { window.removeEventListener('online', go); window.removeEventListener('offline', goOff); };
+  }, []);
+
+  const handleSuggest = async () => {
+    if (!name.trim()) return;
+    setSuggestLoading(true);
+    try {
+      const raw = await ai.suggestProject(name.trim());
+      let json = raw.trim();
+      if (json.startsWith('```')) {
+        json = json.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+      }
+      const parsed = JSON.parse(json);
+      if (parsed.name) setName(parsed.name.slice(0, 128));
+      if (parsed.description) setDescription(parsed.description);
+    } catch {
+      // silently fail
+    } finally {
+      setSuggestLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -409,13 +441,28 @@ function AddProjectDialog({
         </DialogHeader>
         <div className="space-y-3 pt-2" onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) handleSave(); }}>
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Project Name
-            </label>
+            <div className="flex items-center gap-2 mb-1">
+              <label className="block text-xs font-medium text-muted-foreground">
+                Project Name
+              </label>
+              <button
+                onClick={handleSuggest}
+                disabled={suggestLoading || !name.trim() || !online}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+                title="Suggest name and description with AI"
+              >
+                {suggestLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3" />
+                )}
+                Suggest
+              </button>
+            </div>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value.slice(0, 128))}
-              placeholder="my-service"
+              placeholder="e.g. Next.js blog with Prisma"
               className="font-mono text-sm"
               autoFocus
               onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}

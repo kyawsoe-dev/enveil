@@ -352,6 +352,54 @@ pub fn change_password(
     Ok(())
 }
 
+fn build_shell_command(command: &str) -> std::process::Command {
+    #[cfg(target_os = "macos")]
+    let cmd = {
+        let mut c = std::process::Command::new("zsh");
+        c.args(["-l", "-c", command]);
+        c
+    };
+    #[cfg(target_os = "linux")]
+    let cmd = {
+        let mut c = std::process::Command::new("sh");
+        c.args(["-c", command]);
+        c
+    };
+    #[cfg(windows)]
+    let cmd = {
+        let mut c = std::process::Command::new("cmd");
+        c.args(["/C", command]);
+        c
+    };
+    cmd
+}
+
+fn capture_command_output(command: &str, envs: &BTreeMap<String, String>) -> Result<String, String> {
+    let output = build_shell_command(command)
+        .envs(envs)
+        .output()
+        .map_err(|e| format!("Failed to execute command: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    let combined: String = if stderr.is_empty() {
+        stdout
+    } else {
+        format!("{}{}", stdout, stderr)
+    };
+
+    if !output.status.success() {
+        return Err(format!(
+            "Command exited with code {}:\n{}",
+            output.status.code().unwrap_or(-1),
+            combined,
+        ));
+    }
+
+    Ok(combined)
+}
+
 #[tauri::command]
 pub fn run_command(
     state: tauri::State<AppState>,
@@ -365,90 +413,7 @@ pub fn run_command(
         .find_project(&project_id)
         .ok_or_else(|| format!("Project not found: {}", project_id))?;
 
-    let envs: BTreeMap<String, String> = project.env_vars.clone();
-
-    #[cfg(target_os = "macos")]
-    {
-        let output = std::process::Command::new("zsh")
-            .args(["-l", "-c", &command])
-            .envs(&envs)
-            .output()
-            .map_err(|e| format!("Failed to execute command: {}", e))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-        let combined = if stderr.is_empty() {
-            stdout
-        } else {
-            format!("{}{}", stdout, stderr)
-        };
-
-        if !output.status.success() {
-            return Err(format!(
-                "Command exited with code {}:\n{}",
-                output.status.code().unwrap_or(-1),
-                combined,
-            ));
-        }
-
-        Ok(combined)
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let output = std::process::Command::new("sh")
-            .arg("-c")
-            .arg(&command)
-            .envs(&envs)
-            .output()
-            .map_err(|e| format!("Failed to execute command: {}", e))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-        let combined = if stderr.is_empty() {
-            stdout
-        } else {
-            format!("{}{}", stdout, stderr)
-        };
-
-        if !output.status.success() {
-            return Err(format!(
-                "Command exited with code {}:\n{}",
-                output.status.code().unwrap_or(-1),
-                combined,
-            ));
-        }
-
-        Ok(combined)
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let output = std::process::Command::new("cmd")
-            .args(["/C", &command])
-            .envs(&envs)
-            .output()
-            .map_err(|e| format!("Failed to execute command: {}", e))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-        let combined = if stderr.is_empty() {
-            stdout
-        } else {
-            format!("{}{}", stdout, stderr)
-        };
-
-        if !output.status.success() {
-            return Err(format!(
-                "Command exited with code {}:\n{}",
-                output.status.code().unwrap_or(-1),
-                combined,
-            ));
-        }
-
-        Ok(combined)
-    }
+    capture_command_output(&command, &project.env_vars)
 }
 
 #[tauri::command]
@@ -511,43 +476,16 @@ pub fn run_command_stream(
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
     };
 
-    let mut child: std::process::Child;
-    #[cfg(target_os = "macos")]
-    {
-        child = Command::new("zsh")
-            .args(["-l", "-c", &command])
-            .current_dir(&cwd)
-            .envs(&envs)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .process_group(0)
-            .spawn()
-            .map_err(|e| format!("Failed to execute command: {}", e))?;
-    }
-    #[cfg(target_os = "linux")]
-    {
-        child = Command::new("sh")
-            .arg("-c")
-            .arg(&command)
-            .current_dir(&cwd)
-            .envs(&envs)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .process_group(0)
-            .spawn()
-            .map_err(|e| format!("Failed to execute command: {}", e))?;
-    }
-    #[cfg(windows)]
-    {
-        child = Command::new("cmd")
-            .args(["/C", &command])
-            .current_dir(&cwd)
-            .envs(&envs)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to execute command: {}", e))?;
-    }
+    let mut cmd = build_shell_command(&command);
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    cmd.process_group(0);
+    let mut child: std::process::Child = cmd
+        .current_dir(&cwd)
+        .envs(&envs)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to execute command: {}", e))?;
 
     // Take stdout/stderr before moving child into shared state
     let stdout = child.stdout.take();

@@ -16,6 +16,10 @@ import {
   Download,
   Loader2,
   X,
+  AlertTriangle,
+  ShieldCheck,
+  FileText,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +38,7 @@ import { useVault } from "./VaultProvider";
 import { useClipboardTimeout } from "@/hooks/use-clipboard-timeout";
 import EditProjectDialog from "./EditProjectDialog";
 import type { Project } from "@/lib/types";
+import * as ai from "@/lib/ai";
 
 export default function EnvTable() {
   const { state, saveProject } = useVault();
@@ -55,6 +60,19 @@ export default function EnvTable() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [copyAllDone, setCopyAllDone] = useState(false);
   const [copySelDone, setCopySelDone] = useState(false);
+  const [validateLoading, setValidateLoading] = useState(false);
+  const [validationWarnings, setValidationWarnings] = useState<Record<string, { issue: string; severity: string }>>({});
+  const [docstringsLoading, setDocstringsLoading] = useState(false);
+  const [docstrings, setDocstrings] = useState<Record<string, string>>({});
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    const go = () => setOnline(true);
+    const goOff = () => setOnline(false);
+    window.addEventListener('online', go);
+    window.addEventListener('offline', goOff);
+    return () => { window.removeEventListener('online', go); window.removeEventListener('offline', goOff); };
+  }, []);
   const lastClickedRef = useRef<string | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
@@ -121,6 +139,8 @@ export default function EnvTable() {
 
   useEffect(() => {
     setSelectedKeys(new Set());
+    setValidationWarnings({});
+    setDocstrings({});
   }, [selected?.id]);
 
   const handleDeleteSelected = async () => {
@@ -173,6 +193,49 @@ export default function EnvTable() {
     } catch {
       await navigator.clipboard.writeText(content);
       window.alert('Could not save file. Selected variables were copied to clipboard instead.');
+    }
+  };
+
+  const handleValidate = async () => {
+    if (!selected || Object.keys(selected.env_vars).length === 0) return;
+    setValidateLoading(true);
+    setValidationWarnings({});
+    try {
+      const raw = await ai.validateEnvVars(selected.env_vars);
+      let json = raw.trim();
+      if (json.startsWith('```')) {
+        json = json.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+      }
+      const parsed = JSON.parse(json);
+      if (!Array.isArray(parsed)) throw new Error('AI did not return an array');
+      const map: Record<string, { issue: string; severity: string }> = {};
+      for (const item of parsed) {
+        if (item.key && item.issue) map[item.key] = { issue: item.issue, severity: item.severity || 'warning' };
+      }
+      setValidationWarnings(map);
+    } catch {
+      setValidationWarnings({ __error__: { issue: 'Validation failed. Check console for details.', severity: 'error' } });
+    } finally {
+      setValidateLoading(false);
+    }
+  };
+
+  const handleGenerateDocstrings = async () => {
+    if (!selected || Object.keys(selected.env_vars).length === 0) return;
+    setDocstringsLoading(true);
+    try {
+      const raw = await ai.generateEnvDocstrings(selected.env_vars);
+      let json = raw.trim();
+      if (json.startsWith('```')) {
+        json = json.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+      }
+      const parsed = JSON.parse(json);
+      if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('AI did not return an object');
+      setDocstrings(parsed);
+    } catch {
+      // silently fail
+    } finally {
+      setDocstringsLoading(false);
     }
   };
 
@@ -482,6 +545,38 @@ export default function EnvTable() {
               {copyAllDone ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
               Copy All
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleValidate}
+              disabled={validateLoading || Object.keys(selected.env_vars).length === 0 || !online}
+              className="gap-1.5 h-7 text-xs hover:text-foreground relative"
+            >
+              {validateLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : Object.keys(validationWarnings).some(k => k !== '__error__') ? (
+                <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
+              ) : (
+                <ShieldCheck className="h-3.5 w-3.5" />
+              )}
+              Validate
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleGenerateDocstrings}
+              disabled={docstringsLoading || !online}
+              className="gap-1.5 h-7 text-xs hover:text-foreground"
+            >
+              {docstringsLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : Object.keys(docstrings).length > 0 ? (
+                <FileText className="h-3.5 w-3.5 text-sky-400" />
+              ) : (
+                <FileText className="h-3.5 w-3.5" />
+              )}
+              Annotate
+            </Button>
           </>
         )}
         <ExportButton project={selected} />
@@ -521,6 +616,8 @@ export default function EnvTable() {
                 selected={selectedKeys.has(key)}
                 onSelect={() => handleSelect(key)}
                 onSelectRange={() => handleSelect(key, true)}
+                warning={validationWarnings[key]}
+                docstring={docstrings[key]}
               />
             ))}
             {Object.keys(selected.env_vars).length === 0 && (
@@ -714,6 +811,8 @@ function EnvVarRow({
   selected,
   onSelect,
   onSelectRange,
+  warning,
+  docstring,
 }: {
   idx: number;
   name: string;
@@ -724,6 +823,8 @@ function EnvVarRow({
   selected?: boolean;
   onSelect?: () => void;
   onSelectRange?: () => void;
+  warning?: { issue: string; severity: string };
+  docstring?: string;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -774,9 +875,30 @@ function EnvVarRow({
         {idx + 1}
       </td>
       <td className="px-3 py-2">
-        <span className="font-mono text-xs font-medium text-env-key">
-          {name}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {docstring ? (
+            <span className="group relative inline-flex">
+              <span className="font-mono text-xs font-medium text-env-key border-b border-dotted border-muted-foreground/30 cursor-help">
+                {name}
+              </span>
+              <div className="pointer-events-none invisible group-hover:visible absolute bottom-full left-1/2 z-50 mb-1 -translate-x-1/2 w-60 rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md whitespace-normal">
+                {docstring}
+              </div>
+            </span>
+          ) : (
+            <span className="font-mono text-xs font-medium text-env-key">
+              {name}
+            </span>
+          )}
+          {warning && (
+            <span className="group relative inline-flex">
+              <AlertTriangle className={`h-3 w-3 ${warning.severity === 'error' ? 'text-red-500' : 'text-amber-500'}`} />
+              <div className="pointer-events-none invisible group-hover:visible absolute bottom-full left-1/2 z-50 mb-1 -translate-x-1/2 w-56 rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md whitespace-normal">
+                {warning.issue}
+              </div>
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-3 py-2">
         <div className="max-w-[400px] overflow-x-auto scrollbar-thin">
@@ -1054,6 +1176,35 @@ function AddEnvVarDialog({
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
   const [open, setOpen] = useState(false);
+  const [envSuggestLoading, setEnvSuggestLoading] = useState(false);
+  const [envDialogOnline, setEnvDialogOnline] = useState(true);
+  useEffect(() => {
+    setEnvDialogOnline(navigator.onLine);
+    const go = () => setEnvDialogOnline(true);
+    const goOff = () => setEnvDialogOnline(false);
+    window.addEventListener('online', go);
+    window.addEventListener('offline', goOff);
+    return () => { window.removeEventListener('online', go); window.removeEventListener('offline', goOff); };
+  }, []);
+
+  const handleSuggestEnvVar = async () => {
+    if (!key.trim()) return;
+    setEnvSuggestLoading(true);
+    try {
+      const raw = await ai.suggestEnvVar(key.trim(), Object.keys(project.env_vars));
+      let json = raw.trim();
+      if (json.startsWith('```')) {
+        json = json.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+      }
+      const parsed = JSON.parse(json);
+      if (parsed.key) setKey(parsed.key.toUpperCase().replace(/[^A-Z0-9_]/g, ""));
+      if (parsed.value) setValue(parsed.value);
+    } catch {
+      // silently fail
+    } finally {
+      setEnvSuggestLoading(false);
+    }
+  };
 
   const handleSave = async (close?: boolean) => {
     if (!key.trim()) return;
@@ -1084,15 +1235,30 @@ function AddEnvVarDialog({
         </DialogHeader>
         <div className="space-y-3 pt-2" onKeyDown={(e) => { if (e.key === 'Enter' && key.trim()) handleSave(true); }}>
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              KEY
-            </label>
+            <div className="flex items-center gap-2 mb-1">
+              <label className="block text-xs font-medium text-muted-foreground">
+                KEY
+              </label>
+              <button
+                onClick={handleSuggestEnvVar}
+                disabled={envSuggestLoading || !key.trim() || !envDialogOnline}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+                title="Suggest key and value with AI"
+              >
+                {envSuggestLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3" />
+                )}
+                Suggest
+              </button>
+            </div>
             <Input
               value={key}
               onChange={(e) =>
                 setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ""))
               }
-              placeholder="DATABASE_URL"
+              placeholder="e.g. connection string for PostgreSQL"
               className="font-mono text-sm"
               autoFocus
               onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}

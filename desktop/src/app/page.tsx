@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { VaultProvider, useVault } from '@/components/VaultProvider';
 import MasterAuth from '@/components/MasterAuth';
 import Sidebar from '@/components/Sidebar';
@@ -10,12 +10,32 @@ import ProjectView from '@/components/ProjectView';
 import DiffView from '@/components/DiffView';
 import TerminalRunner from '@/components/TerminalRunner';
 import LanSyncView from '@/components/LanSyncView';
+import AIChatWidget from '@/components/AIChatWidget';
 import { Toaster } from '@/components/ui/toaster';
 
 function AppShell() {
   const { state } = useVault();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const checkedRef = useRef(false);
+
+  const preventContextMenu = useCallback((e: MouseEvent) => {
+    e.preventDefault();
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('contextmenu', preventContextMenu);
+    return () => document.removeEventListener('contextmenu', preventContextMenu);
+  }, [preventContextMenu]);
+
+  useEffect(() => {
+    if (!state.isUnlocked) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [state.isUnlocked]);
 
   useEffect(() => {
     if (!state.isUnlocked || checkedRef.current) return;
@@ -60,6 +80,7 @@ function AppShell() {
           </div>
         </div>
       </main>
+      <AIChatWidget />
     </div>
   );
 }

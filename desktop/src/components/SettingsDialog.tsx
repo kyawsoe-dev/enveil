@@ -41,6 +41,7 @@ export default function SettingsDialog() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadStatus, setDownloadStatus] = useState('');
 
+
   useEffect(() => {
     checkForUpdates();
   }, []);

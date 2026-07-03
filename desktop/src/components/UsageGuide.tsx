@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi, Copy, FileText, ExternalLink, RefreshCw, Trash2, Upload, FolderOpen, CheckSquare, History, FileOutput, Download, Merge, Activity } from 'lucide-react';
+import { CircleHelp, Search, Plus, Terminal, GitCompare, Lock, BookOpen, Eye, Wifi, Copy, FileText, ExternalLink, RefreshCw, Trash2, Upload, FolderOpen, CheckSquare, History, FileOutput, Download, Merge, Activity, Sparkles, MessageCircle, BarChart3, AlertTriangle, GripVertical } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -283,6 +283,93 @@ export default function UsageGuide() {
             <p className="text-muted-foreground mt-2">
               To prevent loops, the sync only triggers when the file content actually differs from the vault. Regenerating the temp file (via the <strong>Regenerate</strong> vault button) does <em>not</em> cause a reverse sync.
             </p>
+          </section>
+
+          {/* AI Features */}
+          <section>
+            <h2 className="flex items-center gap-1.5 font-semibold text-base mb-3 mt-6 border-b border-border/40 pb-2">
+              <Sparkles className="h-4 w-4 text-primary" /> AI Assistant
+            </h2>
+            <p className="text-muted-foreground mb-3">
+              {APP_NAME} integrates with <strong>OpenRouter</strong> to provide smart AI assistance for env var management. To enable, set these environment variables before launching the app: <code className="text-xs bg-muted px-1 rounded">OPENROUTER_API_KEY</code>, <code className="text-xs bg-muted px-1 rounded">OPENROUTER_MODEL</code>, <code className="text-xs bg-muted px-1 rounded">OPENROUTER_BASE_URL</code>. You can also set them in a <code className="text-xs bg-muted px-1 rounded">.env</code> file in the project root.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <MessageCircle className="h-3.5 w-3.5 text-primary" /> AI Chat
+            </h3>
+            <p className="text-muted-foreground">
+              When AI is configured, a floating chat button appears in the bottom-right corner. Click it to open the AI chat. Ask questions about your env vars, get suggestions, or just chat. The button is <strong>draggable</strong> — its position is saved across sessions. A green signal ring indicates it's connected. You'll see your remaining daily AI requests (100 per day) at the bottom of the chat widget. All AI buttons are automatically disabled when you go offline.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <FileText className="h-3.5 w-3.5 text-primary" /> AI Env Template
+            </h3>
+            <p className="text-muted-foreground">
+              When editing a project, click <strong>AI Template</strong> in the toolbar. Describe your tech stack in plain English (e.g. <em>"Next.js app with Prisma, Redis, and S3"</em>). The AI generates a structured list of env vars with descriptions. Preview them, check the ones you want, and click <strong>Import</strong> to merge them into your project. Existing keys are detected and marked to avoid overwrites.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <AlertTriangle className="h-3.5 w-3.5 text-primary" /> AI Value Validation
+            </h3>
+            <p className="text-muted-foreground">
+              Click the <strong>Validate</strong> button in the env table toolbar. The AI checks all env var values for security issues: empty values, placeholder text (like <code className="text-xs bg-muted px-1 rounded">password</code> or <code className="text-xs bg-muted px-1 rounded">changeme</code>), database URLs with default passwords, and localhost URLs. Flagged variables show a warning icon — hover to see the issue and severity.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <BookOpen className="h-3.5 w-3.5 text-primary" /> AI Env Docstrings
+            </h3>
+            <p className="text-muted-foreground">
+              Click the <strong>Describe</strong> button next to Validate. The AI generates a one-line description for every env var in your project. Variable names get a dotted underline — hover to see the AI-generated description explaining what the variable is for.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <History className="h-3.5 w-3.5 text-primary" /> AI Diff Summary
+            </h3>
+            <p className="text-muted-foreground">
+              Open a project's <strong>History</strong> panel. Click <strong>Summarize</strong> on any snapshot preview. The AI generates a plain-English paragraph explaining what changed and why — highlighting added, removed, and modified variables in context.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-1.5 font-semibold mb-1">
+              <Sparkles className="h-3.5 w-3.5 text-primary" /> AI Suggestions
+            </h3>
+            <p className="text-muted-foreground">
+              When creating a new project or env var, look for the <Sparkles className="h-3 w-3 inline" /> sparkle icon. Type a rough description and click the sparkle — the AI fills in the project name/description or env var key/value based on your input.
+            </p>
+          </section>
+
+          {/* Dashboard */}
+          <section>
+            <h2 className="flex items-center gap-1.5 font-semibold text-base mb-3 mt-6 border-b border-border/40 pb-2">
+              <BarChart3 className="h-4 w-4 text-primary" /> Dashboard Analytics
+            </h2>
+            <p className="text-muted-foreground">
+              The Dashboard gives you a bird's-eye view of your entire vault. Switch to <strong>Dashboard</strong> in the sidebar to see:
+            </p>
+            <ul className="mt-2 space-y-1 text-muted-foreground text-xs list-disc list-inside">
+              <li><strong>Security Score</strong> — A donut chart showing your overall security health (0–100%). Click <strong>Review</strong> to see every flagged variable with its project, key, and the reason it was flagged.</li>
+              <li><strong>Vault Stats</strong> — Total projects, variables, unique keys, shared projects, and remaining AI requests for today.</li>
+              <li><strong>Projects by Variable Count</strong> — A bar chart ranking projects by env var count. Click any bar to navigate directly to that project.</li>
+              <li><strong>Most Common Variable Names</strong> — The top 10 most frequently used keys across all projects.</li>
+              <li><strong>Coverage Gaps</strong> — Common keys that some projects are missing (e.g. <code className="text-xs bg-muted px-1 rounded">DATABASE_URL</code>, <code className="text-xs bg-muted px-1 rounded">NODE_ENV</code>).</li>
+              <li><strong>Key Categories</strong> — Variables grouped by prefix (e.g. <code className="text-xs bg-muted px-1 rounded">DATABASE_*</code>, <code className="text-xs bg-muted px-1 rounded">REDIS_*</code>, <code className="text-xs bg-muted px-1 rounded">API_*</code>) shown as color-coded chips.</li>
+              <li><strong>Missing Critical Vars</strong> — Projects that are missing essential keys like <code className="text-xs bg-muted px-1 rounded">DATABASE_URL</code>, <code className="text-xs bg-muted px-1 rounded">PORT</code>, <code className="text-xs bg-muted px-1 rounded">SECRET_KEY</code>, etc.</li>
+              <li><strong>Duplicate Values</strong> — Same secret value used in multiple places across different projects.</li>
+              <li><strong>Change Velocity</strong> — How many snapshots each project has per week or month.</li>
+              <li><strong>Stale Projects</strong> — Projects with no changes in the last 30 days.</li>
+              <li><strong>Recent Changes</strong> — The most recent snapshot across all projects with relative timestamps.</li>
+            </ul>
           </section>
 
         </div>

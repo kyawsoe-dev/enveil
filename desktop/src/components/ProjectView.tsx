@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useVault } from './VaultProvider';
-import { Key, Lock, Unlock, Eye, EyeOff, FileText, Trash2, RefreshCw, ExternalLink, Loader2, ChevronDown, FolderOpen, GitCompare, Terminal, History, Play, Check, X } from 'lucide-react';
+import { Key, Lock, Unlock, Eye, EyeOff, FileText, Trash2, RefreshCw, ExternalLink, Loader2, ChevronDown, FolderOpen, GitCompare, Terminal, History, Play, Check, X, WandSparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import EnvTable from './EnvTable';
 import HistoryPanel from './HistoryPanel';
+import AITemplateDialog from './AITemplateDialog';
 import * as tauri from '@/lib/tauri';
 
 export default function ProjectView() {
@@ -234,6 +235,12 @@ export default function ProjectView() {
     } catch (err) {
       console.error('Failed to diff with file:', err);
     }
+  };
+
+  const handleAddFromTemplate = async (vars: Record<string, string>) => {
+    if (!selected) return;
+    const updated = { ...selected, env_vars: { ...selected.env_vars, ...vars } };
+    await saveProject(updated);
   };
 
   return (
@@ -469,6 +476,11 @@ export default function ProjectView() {
                     Generates a secure temp .env file with a symlink in your chosen project folder.
                   </div>
                 </div>
+                <div className="w-px h-6 bg-border mx-1" />
+                <AITemplateDialog
+                  onAdd={handleAddFromTemplate}
+                  existingKeys={Object.keys(selected?.env_vars ?? {})}
+                />
                 <div className="w-px h-6 bg-border mx-1" />
                 <div className="group relative">
                   <Button

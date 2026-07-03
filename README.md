@@ -75,18 +75,52 @@ This removes the quarantine attribute. Then open the app normally.
 - **LAN Sync** — Share projects with teammates on the same local network with per-project share passwords
 - **Open Folder / Terminal** — Open a project's linked folder in Finder and Terminal with one click
 
+### AI Assistant (OpenRouter)
+
+- **AI Chat** — Floating chat bubble with Telegram-style messages, animated typing indicator, draggable position (persisted in localStorage)
+- **AI Env Template Generation** — Describe your stack and get a structured `.env` template; preview, select, and merge into any project
+- **AI Value Validation** — Validate env var values for security issues (empty values, placeholder patterns, default DB passwords, localhost URLs)
+- **AI Env Docstrings** — Auto-generate one-line descriptions for every env var; shown as dotted-underline hover tooltips
+- **AI Diff Summaries** — Get a plain-English summary explaining what changed between history snapshots
+- **AI Suggestions** — Suggest project name/description or env var key/value from a rough description; respects existing keys
+- **Rate Limiting** — 100 AI requests per day per user (localStorage counter, resets daily)
+- **Offline Detection** — All AI buttons auto-disable when the device is offline
+- **Configurable Model** — Choose your preferred OpenRouter model, stored in localStorage
+
 ### Developer Tools
 
 - **Terminal Runner** — Run shell commands with decrypted env vars injected — streaming output, Stop, Kill by port, command history, per-project cwd
 - **Project Run Command** — Save a run command (e.g. `npm start`) and launch it from the linked toolbar with one click
-- **Project Diff** — Side-by-side comparison of any two projects or against a `.env` file
+- **Project Diff** — Side-by-side comparison of any two projects or against a `.env` file; swap A/B, toggle identical keys, Apply vault-to-file or file-to-vault
 - **Env Var Version History** — Auto-snapshots on every save; browse history with diff preview; restore any snapshot
 - **Process Group Isolation** — Kill/Stop terminates all child processes — no orphaned `node`/`npm` processes
+
+### Dashboard Analytics
+
+- **Security Score** — Circular gauge (0–100%) with inline Review list showing every flagged variable by project, key, and reason
+- **Vault Stats** — Total Projects, Total Variables, Unique Keys, Shared Projects, AI Rate Limit remaining
+- **Projects by Variable Count** — Vertical bar chart; click a bar to navigate to that project
+- **Most Common Variable Names** — Top 10 most frequent keys with frequency bars
+- **Coverage Gaps** — Projects missing common keys (e.g. `DATABASE_URL`, `NODE_ENV`)
+- **Key Categories (by prefix)** — Auto-categorized chips (e.g. `DATABASE_*`, `REDIS_*`, `API_*`)
+- **Missing Critical Vars** — Detects missing essential keys across all projects
+- **Duplicate Values** — Same value used across different keys/projects
+- **Change Velocity** — Snapshots per week/month per project with horizontal bar chart
+- **Stale Projects** — No changes in the last 30 days
+- **Recent Changes** — Recent snapshots across all projects with relative timestamps
 
 ### UI & UX
 
 - **Dark/Light/System Theme** — Class-based theming via `next-themes`
-- **CSS Tooltips** — Hover tooltips on Apply vault-to-file / Apply file-to-vault buttons in DiffView
+- **Multi-Select Bulk Ops** — Checkbox + Shift-click range selection + floating action bar
+- **Drag & Drop Import** — Drop `.env` files or paste content onto the table with conflict resolution
+- **Keyboard Shortcuts** — `Cmd+K` search, `↑/↓` command history, `Ctrl+L` clear terminal, `Esc` clear selection
+- **Resizable Sidebar** — Drag the right edge to adjust width (180–400px, persisted)
+- **Custom context menu disabled** — Right-click disabled on app window
+- **Beforeunload warning** — Warns before closing with unlocked vault
+- **Scrollbar Styling** — Custom thin scrollbars
+- **Custom Fonts** — Bitcount Single (brand), Inter (UI), JetBrains Mono (code)
+- **CSS Tooltips** — Hover tooltips on Apply buttons in DiffView
 
 ## Architecture
 
@@ -221,24 +255,28 @@ flowchart TD
 │   │   │   ├── ui/                   shadcn-style primitives
 │   │   │   │   ├── badge.tsx, button.tsx, card.tsx, dialog.tsx
 │   │   │   │   ├── input.tsx, separator.tsx, toast.tsx, toaster.tsx
+│   │   │   ├── AIChatWidget.tsx      Floating AI chat bubble
+│   │   │   ├── AITemplateDialog.tsx  AI env template generation
 │   │   │   ├── AppBrand.tsx          Logo/wordmark component
 │   │   │   ├── ChangePasswordDialog.tsx
-│   │   │   ├── Dashboard.tsx         Analytics + env table view
+│   │   │   ├── Dashboard.tsx         Analytics + Security Score + env table view
 │   │   │   ├── DeleteProjectDialog.tsx  Delete project confirmation
 │   │   │   ├── DiffView.tsx          Side-by-side project comparison
 │   │   │   ├── EditProjectDialog.tsx Add/edit project dialog
-│   │   │   ├── EnvTable.tsx          Inline env var editing + bulk import + export
+│   │   │   ├── EnvTable.tsx          Inline env var editing + AI validate/docstrings + bulk import/export
+│   │   │   ├── HistoryPanel.tsx      Version history + AI diff summarization
 │   │   │   ├── MasterAuth.tsx        Login/create vault screen
 │   │   │   ├── ProjectView.tsx       Selected project detail view
 │   │   │   ├── ResetVaultDialog.tsx  Wipe vault confirmation
 │   │   │   ├── SearchBar.tsx         Cmd+K search across all data
-│   │   │   ├── SettingsDialog.tsx    Vault settings (auto-lock, security)
-│   │   │   ├── Sidebar.tsx           Project list + collapse + theme toggle
+│   │   │   ├── SettingsDialog.tsx    Vault settings (auto-lock, security, clipboard timeout)
+│   │   │   ├── Sidebar.tsx           Project list + collapse + theme toggle + AI project suggest
 │   │   │   ├── TerminalRunner.tsx    Shell command runner with env injection
 │   │   │   ├── ThemeProvider.tsx     next-themes wrapper
 │   │   │   ├── UsageGuide.tsx        Help modal
 │   │   │   └── VaultProvider.tsx     React context (state + dispatch)
 │   │   ├── lib/
+│   │   │   ├── ai.ts                AI bridge (7 functions) + rate limiting
 │   │   │   ├── brand.ts              App name, logo paths, brand font class
 │   │   │   ├── tauri.ts              invoke wrappers (31 commands)
 │   │   │   ├── types.ts              TS interfaces (Vault, Project, DiffResult…)
@@ -251,7 +289,7 @@ flowchart TD
 │
 ├── src-tauri/                        Rust backend
 │   ├── src/
-│   │   ├── main.rs                   Tauri builder, state, handler registration
+│   │   ├── main.rs                   Tauri builder, .env loader, handler registration (9 AI cmds)
 │   │   ├── error.rs                  VaultError enum
 │   │   ├── models/
 │   │   │   ├── vault.rs              Vault, Project, SecurePayload
@@ -267,7 +305,8 @@ flowchart TD
 │   │   │   └── vault_file.rs         Save/load encrypted vault file
 │   │   ├── commands/
 │   │   │   │   ├── vault_commands.rs     Vault commands (unlock, save, delete…)
-│   │   │   │   └── sync_commands.rs      LAN sync commands (start, stop, download)
+│   │   │   │   ├── sync_commands.rs      LAN sync commands (start, stop, download)
+│   │   │   │   └── ai_commands.rs        AI commands (8 functions, curl helper)
 │   ├── tauri.conf.json               Window config (fullscreen), allowlist, icons
 │   └── Cargo.toml                    Rust dependencies
 │
@@ -283,6 +322,14 @@ flowchart TD
 | **Storage** | Encrypted `vault.bin` in OS config directory (`~/.config/env-vault/`) |
 | **Memory** | Plaintext vault held only in process memory after unlock |
 | **Process Isolation** | Injected env vars scoped to child process — never written to global environment |
+| **Path Traversal Protection** | `validate_path()` blocks access to `/proc/`, `/sys/`, `/dev/`, `/etc/`, `/boot/` |
+| **Command Validation** | `validate_command()` blocks destructive patterns (`rm -rf /`, `mkfs`, `dd if=`, `poweroff`, etc.) |
+| **Temp File Permissions** | `600` (owner read/write only); temp directories `700` |
+| **Process Group Isolation** | `process_group(0)` on Unix — no orphaned child processes |
+| **Symlink Protection** | Prevents symlink planting in sensitive system directories |
+| **Dashboard Security Score** | Heuristic rules: empty values, placeholder patterns, DB URLs with default passwords, localhost URLs |
+| **Context Menu Disabled** | Right-click disabled on app window to prevent copy/paste of secrets |
+| **Beforeunload Warning** | Warns before closing with an unlocked vault |
 | **Error handling** | All Tauri commands return `Result<T, String>`; internal errors propagate via `VaultError` |
 
 ## IPC Commands
@@ -324,6 +371,14 @@ All commands return `Result<T, String>` for frontend consumption.
 | `get_temp_env_status` | `projectId: String` | `TempEnvStatus?` |
 | `export_vault` | `password: String, outputPath: String` | `()` |
 | `import_vault` | `password: String, inputPath: String, mode: String ("replace" | "merge")` | `()` |
+| `get_ai_config` | — | `AiConfig { configured: bool }` |
+| `call_ai` | `systemPrompt: String, userMessage: String` | `String` |
+| `generate_env_template` | `description: String` | `String` (JSON) |
+| `validate_env_vars` | `envVars: Record<String, String>` | `String` (JSON) |
+| `generate_env_docstrings` | `envVars: Record<String, String>` | `String` (JSON) |
+| `explain_diff` | `currentVars: Record<String, String>, previousVars: Record<String, String>` | `String` |
+| `suggest_project` | `description: String` | `String` (JSON) |
+| `suggest_env_var` | `keyDescription: String, existingKeys: String[]` | `String` (JSON) |
 
 ## Data Models
 
