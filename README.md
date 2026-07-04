@@ -75,17 +75,16 @@ This removes the quarantine attribute. Then open the app normally.
 - **LAN Sync** — Share projects with teammates on the same local network with per-project share passwords
 - **Open Folder / Terminal** — Open a project's linked folder in Finder and Terminal with one click
 
-### AI Assistant (OpenRouter)
+### AI Assistant
 
-- **AI Chat** — Floating chat bubble with Telegram-style messages, animated typing indicator, draggable position (persisted in localStorage)
+- **AI Chat** — Floating chat bubble with messages, animated typing indicator, draggable position
 - **AI Env Template Generation** — Describe your stack and get a structured `.env` template; preview, select, and merge into any project
 - **AI Value Validation** — Validate env var values for security issues (empty values, placeholder patterns, default DB passwords, localhost URLs)
 - **AI Env Docstrings** — Auto-generate one-line descriptions for every env var; shown as dotted-underline hover tooltips
 - **AI Diff Summaries** — Get a plain-English summary explaining what changed between history snapshots
 - **AI Suggestions** — Suggest project name/description or env var key/value from a rough description; respects existing keys
-- **Rate Limiting** — 100 AI requests per day per user (localStorage counter, resets daily)
+- **Rate Limiting** — 100 AI requests per day per user (counter, resets daily)
 - **Offline Detection** — All AI buttons auto-disable when the device is offline
-- **Configurable Model** — Choose your preferred OpenRouter model, stored in localStorage
 
 ### Developer Tools
 
