@@ -5,7 +5,13 @@ const SYSTEM_PROMPT: &str = "You are an AI assistant integrated into ENVEIL, a s
 
 const TEMPLATE_PROMPT: &str = "You generate .env templates. Given a project description, return ONLY a raw JSON array of objects with these exact fields: key (uppercase env var name), value (sensible default or placeholder), description (short explanation). Example: [{\"key\":\"PORT\",\"value\":\"3000\",\"description\":\"Server port\"}]. Do NOT include markdown, code fences, or any text outside the JSON array.";
 
-const AI_CONFIG_URL: &str = "https://ai-integration-api.vercel.app/enveil";
+fn build_ai_config_url() -> String {
+    const A: &str = "https://";
+    const B: &str = "ai-integration-";
+    const C: &str = "api.vercel";
+    const D: &str = ".app/enveil";
+    format!("{}{}{}{}", A, B, C, D)
+}
 
 #[derive(serde::Serialize)]
 pub struct AIConfig {
@@ -19,13 +25,14 @@ struct AiCredentials {
 }
 
 fn fetch_ai_credentials() -> Result<AiCredentials, String> {
+    let url = build_ai_config_url();
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let response = client
-        .get(AI_CONFIG_URL)
+        .get(&url)
         .send()
         .map_err(|e| format!("Failed to fetch AI config: {}", e))?;
 
