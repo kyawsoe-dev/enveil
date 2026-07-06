@@ -13,35 +13,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 fn main() {
-    // Load .env from CWD upwards (so OPENROUTER_* vars are picked up)
-    {
-        let mut dir = std::env::current_dir().ok();
-        while let Some(d) = dir {
-            let env_path = d.join(".env");
-            if env_path.exists() {
-                if let Ok(content) = std::fs::read_to_string(&env_path) {
-                    for line in content.lines() {
-                        let line = line.trim();
-                        if line.is_empty() || line.starts_with('#') {
-                            continue;
-                        }
-                        let line = line.strip_prefix("export ").unwrap_or(line);
-                        if let Some((key, value)) = line.split_once('=') {
-                            let key = key.trim();
-                            if !key.is_empty() && std::env::var(key).is_err() {
-                                // Strip inline comments from value, then trim
-                                let value = value.split('#').next().unwrap_or(value).trim();
-                                std::env::set_var(key, value);
-                            }
-                        }
-                    }
-                }
-                break;
-            }
-            dir = d.parent().map(|p| p.to_path_buf());
-        }
-    }
-
     tauri::Builder::default()
         .manage(AppState(Arc::new(Mutex::new(None))))
         .manage(TempEnvState(Mutex::new(HashMap::new())))

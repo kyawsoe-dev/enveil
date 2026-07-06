@@ -47,9 +47,6 @@ jobs:
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
-          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL }}
         run: |
           python3 -c "import os; open('/tmp/tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
           TAURI_PRIVATE_KEY=/tmp/tauri-key.pem tauri build
@@ -88,9 +85,6 @@ jobs:
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
-          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL }}
         run: |
           python3 -c "import os; open('C:\\tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
           $env:TAURI_PRIVATE_KEY = 'C:\tauri-key.pem'
@@ -136,9 +130,6 @@ jobs:
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
-          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL }}
         run: |
           python3 -c "import os; open('/tmp/tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
           TAURI_PRIVATE_KEY=/tmp/tauri-key.pem tauri build --target x86_64-apple-darwin --bundles dmg
@@ -181,9 +172,6 @@ jobs:
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
-          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL }}
         run: |
           python3 -c "import os; open('/tmp/tauri-key.pem','w').write(os.environ['TAURI_PRIVATE_KEY'].strip())"
           TAURI_PRIVATE_KEY=/tmp/tauri-key.pem tauri build --bundles dmg
