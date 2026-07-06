@@ -21,3 +21,62 @@ pub fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32], VaultError> {
     argon2.hash_password_into(password.as_bytes(), salt, &mut key)?;
     Ok(key)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const VALID_PASSWORD: &str = "testpass123";
+    const VALID_SALT: [u8; 32] = [1u8; 32];
+
+    #[test]
+    fn same_inputs_produce_same_key() {
+        let key1 = derive_key(VALID_PASSWORD, &VALID_SALT).unwrap();
+        let key2 = derive_key(VALID_PASSWORD, &VALID_SALT).unwrap();
+        assert_eq!(key1, key2);
+    }
+
+    #[test]
+    fn different_password_produces_different_key() {
+        let key1 = derive_key("password123", &VALID_SALT).unwrap();
+        let key2 = derive_key("password456", &VALID_SALT).unwrap();
+        assert_ne!(key1, key2);
+    }
+
+    #[test]
+    fn different_salt_produces_different_key() {
+        let salt1 = [1u8; 32];
+        let salt2 = [2u8; 32];
+        let key1 = derive_key(VALID_PASSWORD, &salt1).unwrap();
+        let key2 = derive_key(VALID_PASSWORD, &salt2).unwrap();
+        assert_ne!(key1, key2);
+    }
+
+    #[test]
+    fn short_password_returns_error() {
+        let result = derive_key("short", &VALID_SALT);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("at least 8 characters"), "Got: {}", err);
+    }
+
+    #[test]
+    fn exactly_8_char_password_succeeds() {
+        assert!(derive_key("12345678", &VALID_SALT).is_ok());
+    }
+
+    #[test]
+    fn wrong_salt_length_returns_error() {
+        let salt = [0u8; 16];
+        let result = derive_key(VALID_PASSWORD, &salt);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Salt must be 32 bytes"), "Got: {}", err);
+    }
+
+    #[test]
+    fn key_is_32_bytes() {
+        let key = derive_key(VALID_PASSWORD, &VALID_SALT).unwrap();
+        assert_eq!(key.len(), 32);
+    }
+}

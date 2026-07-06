@@ -97,3 +97,102 @@ pub fn decrypt_vault(payload: &SecurePayload, password: &str) -> Result<crate::m
     let vault: crate::models::Vault = serde_json::from_slice(&plaintext)?;
     Ok(vault)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PASSWORD: &str = "testpass123";
+
+    #[test]
+    fn encrypt_decrypt_round_trip() {
+        let plaintext = b"hello world";
+        let payload = encrypt_payload(plaintext, PASSWORD).unwrap();
+        let decrypted = decrypt_payload(&payload, PASSWORD).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn different_encryptions_produce_different_ciphertext() {
+        let plaintext = b"same text";
+        let p1 = encrypt_payload(plaintext, PASSWORD).unwrap();
+        let p2 = encrypt_payload(plaintext, PASSWORD).unwrap();
+        assert_ne!(p1.ciphertext, p2.ciphertext);
+        assert_ne!(p1.salt, p2.salt);
+        assert_ne!(p1.nonce, p2.nonce);
+    }
+
+    #[test]
+    fn wrong_password_fails() {
+        let payload = encrypt_payload(b"secret", PASSWORD).unwrap();
+        let result = decrypt_payload(&payload, "wrongpass123");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn empty_plaintext_round_trip() {
+        let payload = encrypt_payload(b"", PASSWORD).unwrap();
+        let decrypted = decrypt_payload(&payload, PASSWORD).unwrap();
+        assert_eq!(decrypted, b"");
+    }
+
+    #[test]
+    fn large_plaintext_round_trip() {
+        let plaintext = vec![0xABu8; 100_000];
+        let payload = encrypt_payload(&plaintext, PASSWORD).unwrap();
+        let decrypted = decrypt_payload(&payload, PASSWORD).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn invalid_nonce_length_fails() {
+        let payload = SecurePayload {
+            salt: vec![0u8; 32],
+            nonce: vec![0u8; 8],
+            ciphertext: vec![0u8; 16],
+        };
+        let result = decrypt_payload(&payload, PASSWORD);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid nonce"));
+    }
+
+    #[test]
+    fn invalid_salt_length_fails() {
+        let payload = SecurePayload {
+            salt: vec![0u8; 16],
+            nonce: vec![0u8; 12],
+            ciphertext: vec![0u8; 16],
+        };
+        let result = decrypt_payload(&payload, PASSWORD);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid salt"));
+    }
+
+    #[test]
+    fn build_aad_correct_length() {
+        let salt = vec![0u8; 32];
+        let nonce = vec![0u8; 12];
+        let aad = build_aad(&salt, &nonce);
+        assert_eq!(aad.len(), 4 + 32 + 4 + 12);
+    }
+
+    #[test]
+    fn build_aad_prefixed_correctly() {
+        let salt = vec![1u8; 4];
+        let nonce = vec![2u8; 3];
+        let aad = build_aad(&salt, &nonce);
+        assert_eq!(&aad[0..4], &4u32.to_be_bytes());
+        assert_eq!(&aad[4..8], &[1, 1, 1, 1]);
+        assert_eq!(&aad[8..12], &3u32.to_be_bytes());
+        assert_eq!(&aad[12..15], &[2, 2, 2]);
+    }
+
+    #[test]
+    fn encrypt_vault_round_trip() {
+        let vault = crate::models::Vault::new();
+        let payload = encrypt_vault(&vault, PASSWORD).unwrap();
+        let decrypted = decrypt_vault(&payload, PASSWORD).unwrap();
+        assert_eq!(decrypted.version, 1);
+        assert!(decrypted.projects.is_empty());
+    }
+}

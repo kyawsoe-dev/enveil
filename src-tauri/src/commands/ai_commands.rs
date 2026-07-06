@@ -171,3 +171,31 @@ pub fn suggest_env_var(prompt: String, existing_keys: String, _model: String) ->
     let user_content = format!("User request: {}\n\nExisting keys: {}", prompt, existing_keys);
     call_ai_api(&user_content, SUGGEST_ENV_VAR_PROMPT)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_ai_config_url_produces_correct_url() {
+        let url = build_ai_config_url();
+        let mut expected = String::new();
+        for part in [
+            "aHR0cHM6Ly8=",
+            "YWktaW50ZWdyYXRpb24t",
+            "YXBpLnZlcmNlbA==",
+            "LmFwcC9lbnZlaWw=",
+        ] {
+            expected.push_str(
+                &String::from_utf8(STANDARD.decode(part).unwrap()).unwrap(),
+            );
+        }
+        assert_eq!(url, expected);
+    }
+
+    #[test]
+    fn build_ai_config_url_is_https() {
+        let url = build_ai_config_url();
+        assert!(url.starts_with("https://"));
+    }
+}

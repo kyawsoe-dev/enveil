@@ -445,6 +445,33 @@ cd desktop && npm install
 cargo tauri dev
 ```
 
+### Testing
+
+The project has three layers of tests:
+
+```bash
+# Rust unit tests (crypto, vault, commands, error, network)
+cd src-tauri && cargo test
+
+# Frontend unit tests (env parsing, reducer, AI, hooks)
+cd desktop && npm test
+
+# Frontend unit tests in watch mode
+cd desktop && npm run test:watch
+
+# E2E tests (Playwright — vault auth screen, page structure)
+cd desktop && npm run test:e2e
+
+# E2E tests with UI runner
+cd desktop && npm run test:e2e:ui
+```
+
+| Layer | Framework | Tests | What's Covered |
+|---|---|---|---|
+| Rust | `cargo test` | 69 | Argon2id key derivation, ChaCha20Poly1305 encrypt/decrypt, vault CRUD, project diff, command validation, AI config URL, error types, network serde |
+| Frontend | Vitest | 73 | `parseEnvContent`, vault reducer (15 actions), `duplicateProject` name logic, AI rate limiting, model get/set, security score heuristic, `useToast` hook, `useClipboardTimeout` hook |
+| E2E | Playwright | 9 | Vault auth screen visibility, unlock button state, password toggle, input focus, page error handling, card layout |
+
 ### Build for Ubuntu 24.04 (Noble)
 
 ```bash

@@ -1151,3 +1151,91 @@ pub fn get_app_version() -> String {
     let version = env!("CARGO_PKG_VERSION").to_string();
     version
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn safe_command_passes() {
+        assert!(validate_command("ls -la").is_ok());
+        assert!(validate_command("npm install").is_ok());
+        assert!(validate_command("cargo build").is_ok());
+        assert!(validate_command("git status").is_ok());
+        assert!(validate_command("echo hello world").is_ok());
+    }
+
+    #[test]
+    fn rm_rf_root_blocked() {
+        assert!(validate_command("rm -rf /").is_err());
+        assert!(validate_command("rm -rf /*").is_err());
+    }
+
+    #[test]
+    fn rm_rf_case_insensitive() {
+        assert!(validate_command("RM -RF /").is_err());
+        assert!(validate_command("Rm -Rf /*").is_err());
+    }
+
+    #[test]
+    fn fork_bomb_blocked() {
+        assert!(validate_command(":(){ :|:& };:").is_err());
+    }
+
+    #[test]
+    fn mkfs_blocked() {
+        assert!(validate_command("mkfs.ext4 /dev/sda").is_err());
+        assert!(validate_command("mkfs /dev/sda1").is_err());
+    }
+
+    #[test]
+    fn dd_blocked() {
+        assert!(validate_command("dd if=/dev/zero of=/dev/sda").is_err());
+    }
+
+    #[test]
+    fn dev_redirect_blocked() {
+        assert!(validate_command("> /dev/sda").is_err());
+    }
+
+    #[test]
+    fn poweroff_blocked() {
+        assert!(validate_command("poweroff").is_err());
+    }
+
+    #[test]
+    fn shutdown_blocked() {
+        assert!(validate_command("shutdown -h now").is_err());
+    }
+
+    #[test]
+    fn reboot_blocked() {
+        assert!(validate_command("reboot").is_err());
+    }
+
+    #[test]
+    fn halt_blocked() {
+        assert!(validate_command("halt").is_err());
+    }
+
+    #[test]
+    fn init_0_blocked() {
+        assert!(validate_command("init 0").is_err());
+    }
+
+    #[test]
+    fn init_6_blocked() {
+        assert!(validate_command("init 6").is_err());
+    }
+
+    #[test]
+    fn blocked_pattern_in_longer_command() {
+        assert!(validate_command("rm -rf /var/tmp").is_err());
+        assert!(validate_command("echo test && rm -rf /").is_err());
+    }
+
+    #[test]
+    fn empty_command_passes() {
+        assert!(validate_command("").is_ok());
+    }
+}
