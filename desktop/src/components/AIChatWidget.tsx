@@ -1,12 +1,28 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Bot, X, Send, User, BarChart3 } from 'lucide-react';
+import { Bot, X, Send, User, BarChart3, Trash2 } from 'lucide-react';
 import * as ai from '@/lib/ai';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+}
+
+const HISTORY_KEY = 'enveil_ai_chat_history';
+const MAX_HISTORY = 10;
+
+function loadHistory(): Message[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(-MAX_HISTORY) : [];
+  } catch { return []; }
+}
+
+function saveHistory(msgs: Message[]) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(msgs.slice(-MAX_HISTORY)));
 }
 
 function TypingDots() {
@@ -34,6 +50,10 @@ export default function AIChatWidget() {
   const btnRef = useRef<HTMLDivElement>(null);
   const posRef = useRef(pos);
   const dragStartRef = useRef<{ startX: number; startY: number; btnX: number; btnY: number } | null>(null);
+
+  useEffect(() => {
+    setMessages(loadHistory());
+  }, []);
 
   useEffect(() => {
     posRef.current = pos;
@@ -113,13 +133,19 @@ export default function AIChatWidget() {
     if (!input.trim() || loading) return;
     const text = input.trim();
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: text }]);
+    const userMsg = { role: 'user' as const, content: text };
+    const withUser = [...messages, userMsg];
+    setMessages(withUser);
     setLoading(true);
     try {
       const result = await ai.callAI(text);
-      setMessages((prev) => [...prev, { role: 'assistant', content: result }]);
+      const withReply = [...withUser, { role: 'assistant' as const, content: result }];
+      setMessages(withReply);
+      saveHistory(withReply);
     } catch (err) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${err}` }]);
+      const withErr = [...withUser, { role: 'assistant' as const, content: `Error: ${err}` }];
+      setMessages(withErr);
+      saveHistory(withErr);
     } finally {
       setLoading(false);
       setRemaining(ai.getDailyRemaining());
@@ -151,12 +177,21 @@ export default function AIChatWidget() {
                 <p className="text-[10px] opacity-80 leading-tight">Ask me anything</p>
               </div>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="rounded-full p-1.5 hover:bg-primary-foreground/20 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => { setMessages([]); localStorage.removeItem(HISTORY_KEY); }}
+                className="rounded-full p-1.5 hover:bg-primary-foreground/20 transition-colors"
+                title="Clear history"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-full p-1.5 hover:bg-primary-foreground/20 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
