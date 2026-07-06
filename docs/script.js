@@ -766,7 +766,7 @@ async function getAiConfig() {
       showError(err.message === "Failed to fetch" ? "Network error — check your connection." : err.message || "Something went wrong. Please try again.");
     } finally {
       loading = false;
-      sendBtn.disabled = false;
+      sendBtn.disabled = !input.value.trim();
       input.focus();
     }
   }
@@ -785,6 +785,10 @@ async function getAiConfig() {
   });
 
   sendBtn.addEventListener("click", sendMessage);
+
+  input.addEventListener("input", () => {
+    sendBtn.disabled = !input.value.trim() || loading;
+  });
 
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
