@@ -1035,7 +1035,7 @@ pre {
   right: 0;
   bottom: calc(100% + 14px);
   width: 480px;
-  height: 50vh;
+  height: 70vh;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--surface-strong);
