@@ -34,7 +34,7 @@ Blocked patterns (case-insensitive):
 | **Allowlist (whitelist)** | Maximum security | Impractical — users need arbitrary commands |
 | **Docker container** | Full isolation | Heavy, complex setup, not suitable for dev tools |
 | **Denylist + process group** | Practical, blocks known dangerous patterns | Can't catch every novel attack vector |
-| **SELinux/AppArmor** | Kernel-level enforcement | Platform-specific, complex配置 |
+| **SELinux/AppArmor** | Kernel-level enforcement | Platform-specific, complex |
 | **No validation** | Simple | Catastrophic risk |
 
 ## Consequences
